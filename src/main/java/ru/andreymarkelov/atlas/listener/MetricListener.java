@@ -9,6 +9,7 @@ import com.atlassian.jira.event.user.LoginEvent;
 import com.atlassian.jira.event.user.LogoutEvent;
 import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.IssueManager;
+import com.atlassian.jira.security.JiraAuthenticationContext;
 import com.atlassian.jira.user.ApplicationUser;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -17,14 +18,18 @@ import ru.andreymarkelov.atlas.service.MetricCollector;
 public class MetricListener implements InitializingBean, DisposableBean {
     private final EventPublisher eventPublisher;
     private final IssueManager issueManager;
+    private final JiraAuthenticationContext jiraAuthenticationContext;
     private final MetricCollector metricCollector;
+
 
     public MetricListener(
             EventPublisher eventPublisher,
             IssueManager issueManager,
+            JiraAuthenticationContext jiraAuthenticationContext,
             MetricCollector metricCollector) {
         this.eventPublisher = eventPublisher;
         this.issueManager = issueManager;
+        this.jiraAuthenticationContext = jiraAuthenticationContext;
         this.metricCollector = metricCollector;
     }
 
@@ -41,25 +46,37 @@ public class MetricListener implements InitializingBean, DisposableBean {
     @EventListener
     public void onIssueEvent(IssueEvent issueEvent) {
         Issue issue = issueEvent.getIssue();
+        if (issue != null) {
+            metricCollector.issueViewCounter(issue.getProjectObject().getKey(), issue.getKey(), getCurrentUser());
+        }
     }
 
     @EventListener
     public void onDashboardViewEvent(DashboardViewEvent dashboardViewEvent) {
-        Long dashboardId = dashboardViewEvent.getId();
+        metricCollector.dashboardViewCounter(dashboardViewEvent.getId(), getCurrentUser());
     }
 
     @EventListener
     public void onIssueViewEvent(IssueViewEvent issueViewEvent) {
-        Long issueId = issueViewEvent.getId();
+        Issue issue = issueManager.getIssueObject(issueViewEvent.getId());
+        if (issue != null) {
+            metricCollector.issueViewCounter(issue.getProjectObject().getKey(), issue.getKey(), getCurrentUser());
+        }
     }
 
     @EventListener
-    public void onIssueEvent(LoginEvent loginEvent) {
+    public void onLoginEvent(LoginEvent loginEvent) {
         ApplicationUser applicationUser = loginEvent.getUser();
+        metricCollector.userLoginCounter((applicationUser != null) ? applicationUser.getUsername() : "");
     }
 
     @EventListener
     public void onLogoutEvent(LogoutEvent logoutEvent) {
         ApplicationUser applicationUser = logoutEvent.getUser();
+        metricCollector.userLogoutCounter((applicationUser != null) ? applicationUser.getUsername() : "");
+    }
+
+    private String getCurrentUser() {
+        return jiraAuthenticationContext.isLoggedInUser() ? jiraAuthenticationContext.getLoggedInUser().getName() : "";
     }
 }
