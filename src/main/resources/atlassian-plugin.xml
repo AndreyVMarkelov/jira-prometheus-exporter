@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<atlassian-plugin key="${project.groupId}.${project.artifactId}" name="${project.name}" plugins-version="2">
+    <plugin-info>
+        <description>${project.description}</description>
+        <version>${project.version}</version>
+        <vendor name="${project.organization.name}" url="${project.organization.url}"/>
+        <param name="plugin-icon">images/pluginIcon.png</param>
+        <param name="plugin-logo">images/pluginLogo.png</param>
+        <param name="atlassian-data-center-compatible">true</param>
+    </plugin-info>
+
+    <!-- Web Resources -->
+    <web-resource key="prom-jira-exporter-resources" name="Web Resources">
+        <dependency>com.atlassian.auiplugin:ajs</dependency>
+        <resource type="download" name="images/" location="/images"/>
+        <context>prom-jira-exporter</context>
+    </web-resource>
+
+    <!-- Servlets -->
+    <servlet name="Exporter Servlet" key="prom-jira-exporter-servlet" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.servlet.PrometheusExporter">
+        <description key="prometheus-exporter-servler.description">This servlet exposes metrics to prometheus.</description>
+        <url-pattern>/prometheus/metrics</url-pattern>
+    </servlet>
+
+    <!-- Components -->
+    <component name="Metrics Exporter" key="prom-jira-exporter-exporter" class="ru.andreymarkelov.atlas.service.MetricCollectorImpl" public="true">
+        <interface>ru.andreymarkelov.atlas.service.MetricCollector</interface>
+        <description>This service collects metrics.</description>
+    </component>
+    <component name="Metrics Event Listener" key="prom-jira-exporter-listener" class="ru.andreymarkelov.atlas.listener.MetricListener">
+        <description>This service listens JIRA events.</description>
+    </component>
+</atlassian-plugin>
