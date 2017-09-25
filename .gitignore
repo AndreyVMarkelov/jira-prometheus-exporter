@@ -1,0 +1,15 @@
+# Created by .ignore support plugin (hsz.mobi)
+*.class
+*.log
+*.ctxt
+.mtj.tmp/
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+Будет удалено .gitignore
+Будет удалено .idea/
+Будет удалено prom-jira-exporter.iml

@@ -8,15 +8,24 @@ import com.atlassian.jira.event.issue.IssueViewEvent;
 import com.atlassian.jira.event.user.LoginEvent;
 import com.atlassian.jira.event.user.LogoutEvent;
 import com.atlassian.jira.issue.Issue;
+import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.user.ApplicationUser;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
+import ru.andreymarkelov.atlas.service.MetricCollector;
 
 public class MetricListener implements InitializingBean, DisposableBean {
     private final EventPublisher eventPublisher;
+    private final IssueManager issueManager;
+    private final MetricCollector metricCollector;
 
-    public MetricListener(EventPublisher eventPublisher) {
+    public MetricListener(
+            EventPublisher eventPublisher,
+            IssueManager issueManager,
+            MetricCollector metricCollector) {
         this.eventPublisher = eventPublisher;
+        this.issueManager = issueManager;
+        this.metricCollector = metricCollector;
     }
 
     @Override
