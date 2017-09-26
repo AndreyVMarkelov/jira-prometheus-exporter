@@ -4,8 +4,11 @@
         <description>${project.description}</description>
         <version>${project.version}</version>
         <vendor name="${project.organization.name}" url="${project.organization.url}"/>
-        <param name="plugin-icon">images/pluginIcon.png</param>
-        <param name="plugin-logo">images/pluginLogo.png</param>
+        <param name="plugin-logo">/ru/andreymarkelov/atlas/plugins/promjiraexporter/prom-exporter.png</param>
+        <param name="plugin-icon">/ru/andreymarkelov/atlas/plugins/promjiraexporter/prom-exporter-sm.png</param>
+        <param name="vendor-icon">/ru/andreymarkelov/atlas/plugins/promjiraexporter/32.jpg</param>
+        <param name="vendor-logo">/ru/andreymarkelov/atlas/plugins/promjiraexporter/144.jpg</param>
+        <param name="atlassian-data-center-compatible">true</param>
         <param name="atlassian-data-center-compatible">true</param>
     </plugin-info>
 
