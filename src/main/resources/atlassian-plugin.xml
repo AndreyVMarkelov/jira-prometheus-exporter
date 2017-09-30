@@ -9,7 +9,6 @@
         <param name="vendor-icon">/ru/andreymarkelov/atlas/plugins/promjiraexporter/32.jpg</param>
         <param name="vendor-logo">/ru/andreymarkelov/atlas/plugins/promjiraexporter/144.jpg</param>
         <param name="atlassian-data-center-compatible">true</param>
-        <param name="atlassian-data-center-compatible">true</param>
     </plugin-info>
 
     <!-- Web Resources -->
