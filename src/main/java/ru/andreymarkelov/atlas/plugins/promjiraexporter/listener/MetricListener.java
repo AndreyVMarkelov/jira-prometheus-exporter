@@ -47,7 +47,7 @@ public class MetricListener implements InitializingBean, DisposableBean {
     public void onIssueEvent(IssueEvent issueEvent) {
         Issue issue = issueEvent.getIssue();
         if (issue != null) {
-            metricCollector.issueViewCounter(issue.getProjectObject().getKey(), issue.getKey(), getCurrentUser());
+            metricCollector.issueUpdateCounter(issue.getProjectObject().getKey(), issue.getKey(), getCurrentUser());
         }
     }
 
