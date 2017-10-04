@@ -11,7 +11,7 @@
         <url>http://ru.linkedin.com/in/andreymarkelov/</url>
     </organization>
 
-    <name>JIRA Prometheus Exporter</name>
+    <name>Prometheus Exporter For JIRA</name>
     <description>This plugin for Atlassian JIRA provides endpoint to export metrics to prometheus.</description>
 
     <dependencies>

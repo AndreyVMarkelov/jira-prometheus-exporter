@@ -1,4 +1,4 @@
-package ru.andreymarkelov.atlas.listener;
+package ru.andreymarkelov.atlas.plugins.promjiraexporter.listener;
 
 import com.atlassian.event.api.EventListener;
 import com.atlassian.event.api.EventPublisher;
@@ -13,7 +13,7 @@ import com.atlassian.jira.security.JiraAuthenticationContext;
 import com.atlassian.jira.user.ApplicationUser;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import ru.andreymarkelov.atlas.service.MetricCollector;
+import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector;
 
 public class MetricListener implements InitializingBean, DisposableBean {
     private final EventPublisher eventPublisher;

@@ -3,9 +3,11 @@ package ru.andreymarkelov.atlas.plugins.promjiraexporter.servlet;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
 import io.prometheus.client.hotspot.DefaultExports;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.andreymarkelov.atlas.service.MetricCollector;
+import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector;
+import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManager;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -23,39 +25,50 @@ public class PrometheusExporter extends HttpServlet {
 
     private final CollectorRegistry registry;
     private final MetricCollector metricCollector;
+    private final SecureTokenManager secureTokenManager;
 
-    public PrometheusExporter(MetricCollector metricCollector) {
+    public PrometheusExporter(
+            MetricCollector metricCollector,
+            SecureTokenManager secureTokenManager) {
         this.metricCollector = metricCollector;
+        this.secureTokenManager = secureTokenManager;
         this.registry = CollectorRegistry.defaultRegistry;
         this.registry.register(metricCollector.getCollector());
         DefaultExports.initialize();
     }
 
     @Override
-    protected void doGet(final HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
-        resp.setStatus(HttpServletResponse.SC_OK);
-        resp.setContentType(TextFormat.CONTENT_TYPE_004);
+    protected void doGet(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse) throws ServletException, IOException {
+        String paramToken = httpServletRequest.getParameter("token");
+        String storedToken = secureTokenManager.getToken();
 
-        Writer writer = resp.getWriter();
-        try {
-            TextFormat.write004(writer, registry.filteredMetricFamilySamples(parse(req)));
+        if (StringUtils.isNotBlank(storedToken) && !storedToken.equals(paramToken)) {
+            httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+
+        httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+        httpServletResponse.setContentType(TextFormat.CONTENT_TYPE_004);
+
+        try (Writer writer = httpServletResponse.getWriter()) {
+            TextFormat.write004(writer, registry.filteredMetricFamilySamples(parse(httpServletRequest)));
             writer.flush();
-        } finally {
-            writer.close();
         }
     }
 
-    private Set<String> parse(HttpServletRequest req) {
-        String[] includedParam = req.getParameterValues("name[]");
+    @Override
+    protected void doPost(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws ServletException, IOException {
+        doGet(httpServletRequest, httpServletResponse);
+    }
+
+    private Set<String> parse(HttpServletRequest httpServletRequest) {
+        String[] includedParam = httpServletRequest.getParameterValues("name[]");
         if (includedParam == null) {
             return Collections.emptySet();
         } else {
             return new HashSet<>(Arrays.asList(includedParam));
         }
-    }
-
-    @Override
-    protected void doPost(final HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
-        doGet(req, resp);
     }
 }

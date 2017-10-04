@@ -1,4 +1,4 @@
-package ru.andreymarkelov.atlas.service;
+package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.Counter;

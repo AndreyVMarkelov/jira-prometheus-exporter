@@ -1,0 +1,51 @@
+<html>
+    <head>
+        <title>$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.title")</title>
+        <meta content="admin" name="decorator"/>
+        <meta content="admin_plugins_menu/prom-for-jira-exporter-admin-section" name="admin.active.section">
+        <meta content="prom-for-jira-exporter-admin-link" name="admin.active.tab">
+        $webResourceManager.requireResource("jira.webresources:global-static")
+        $webResourceManager.requireResource("jira.webresources:jira-global")
+        $webResourceManager.requireResource("com.atlassian.auiplugin:ajs")
+    </head>
+    <body class="aui">
+        <section id="content" role="main">
+            <header class="aui-page-header">
+                <div class="aui-page-header-inner">
+                    <div class="aui-page-header-main">
+                        <h1>$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.title")</h1>
+                        <p>$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.title.desc")</p>
+                    </div>
+                </div>
+            </header>
+            <div class="aui-page-panel">
+                <div class="aui-page-panel-inner">
+                    <section class="aui-page-panel-content">
+                        #if ($saved)
+                        <div class="aui-message closeable shadowed">
+                            <p class="title">
+                                <span class="aui-icon icon-success"></span>
+                                <strong>$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.status.success")</strong>
+                            </p>
+                        </div>
+                        #end
+                        <form class="aui" name="jiraform" method="post" action="PromForJiraSecureTokenConfigAction.jspa">
+                            <input type="hidden" name="atl_token" value="$atl_token"/>
+                            <div class="field-group">
+                                <label for="token">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token"):</label>
+                                <input class="text long-field" type="text" id="token" name="token" value="$token"/>
+                                #if($action.getErrors().containsKey("token"))<div class="error">$action.getErrors().get("token")</div>#end
+                                <div class="description">$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token.desc")</div>
+                            </div>
+                            <div class="buttons-container">
+                                <div class="buttons">
+                                    <input class="button submit" type="submit" value='$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.action.save")'/>
+                                </div>
+                            </div>
+                        </form>
+                    </section>
+                </div>
+            </div>
+        </section>
+    </body>
+</html>

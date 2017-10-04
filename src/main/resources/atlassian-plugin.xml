@@ -4,32 +4,60 @@
         <description>${project.description}</description>
         <version>${project.version}</version>
         <vendor name="${project.organization.name}" url="${project.organization.url}"/>
-        <param name="plugin-logo">/ru/andreymarkelov/atlas/plugins/promjiraexporter/prom-exporter.png</param>
-        <param name="plugin-icon">/ru/andreymarkelov/atlas/plugins/promjiraexporter/prom-exporter-sm.png</param>
-        <param name="vendor-icon">/ru/andreymarkelov/atlas/plugins/promjiraexporter/32.jpg</param>
-        <param name="vendor-logo">/ru/andreymarkelov/atlas/plugins/promjiraexporter/144.jpg</param>
+        <param name="plugin-logo">/ru/andreymarkelov/atlas/plugins/promjiraexporter/images/prom-exporter.png</param>
+        <param name="plugin-icon">/ru/andreymarkelov/atlas/plugins/promjiraexporter/images/prom-exporter-sm.png</param>
+        <param name="vendor-icon">/ru/andreymarkelov/atlas/plugins/promjiraexporter/images/32.jpg</param>
+        <param name="vendor-logo">/ru/andreymarkelov/atlas/plugins/promjiraexporter/images/144.jpg</param>
         <param name="atlassian-data-center-compatible">true</param>
+        <param name="configure.url">/secure/PromForJiraSecureTokenConfigAction!default.jspa</param>
     </plugin-info>
 
+    <!-- I18N -->
+    <resource type="i18n" name="i18n" location="ru.andreymarkelov.atlas.plugins.promjiraexporter.i18n.promjiraexporter"/>
+
     <!-- Web Resources -->
-    <web-resource key="prom-jira-exporter-resources" name="Web Resources">
+    <web-resource key="prom-for-jira-exporter-resources" name="Web Resources">
         <dependency>com.atlassian.auiplugin:ajs</dependency>
-        <resource type="download" name="images/" location="/images"/>
-        <context>prom-jira-exporter</context>
+        <resource type="download" name="images/" location="/ru/andreymarkelov/atlas/plugins/promjiraexporter/images"/>
+        <context>prom-for-jira-exporter</context>
     </web-resource>
 
     <!-- Servlets -->
-    <servlet name="Exporter Servlet" key="prom-jira-exporter-servlet" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.servlet.PrometheusExporter">
+    <servlet name="Exporter Servlet" key="prom-for-jira-exporter-servlet" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.servlet.PrometheusExporter">
         <description key="prometheus-exporter-servler.description">This servlet exposes metrics to prometheus.</description>
         <url-pattern>/prometheus/metrics</url-pattern>
     </servlet>
 
     <!-- Components -->
-    <component name="Metrics Exporter" key="prom-jira-exporter-exporter" class="ru.andreymarkelov.atlas.service.MetricCollectorImpl" public="true">
-        <interface>ru.andreymarkelov.atlas.service.MetricCollector</interface>
+    <component name="Metrics Exporter" key="prom-for-jira-exporter-exporter" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollectorImpl" public="true">
+        <interface>ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector</interface>
         <description>This service collects metrics.</description>
     </component>
-    <component name="Metrics Event Listener" key="prom-jira-exporter-listener" class="ru.andreymarkelov.atlas.listener.MetricListener">
-        <description>This service listens JIRA events.</description>
+    <component name="Security Token Data Manager" key="prom-for-jira-exporter-data-manager" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManagerImpl">
+        <interface>ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManager</interface>
     </component>
+    <component-import key="pluginSettingsFactory" interface="com.atlassian.sal.api.pluginsettings.PluginSettingsFactory"/>
+    <component-import key="applicationProperties" interface="com.atlassian.sal.api.ApplicationProperties"/>
+
+    <!-- Web Items -->
+    <web-section name="Security Token Admin Section" key="prom-for-jira-exporter-admin-section" location="admin_plugins_menu">
+        <label key="ru.andreymarkelov.atlas.plugins.promjiraexporter.section"/>
+    </web-section>
+    <web-item name="Security Token Admin Settings Link" key="prom-for-jira-exporter-admin-link" section="admin_plugins_menu/prom-for-jira-exporter-admin-section" weight="95">
+        <label key="ru.andreymarkelov.atlas.plugins.promjiraexporter.section.link">Prometheus Exporter Settings</label>
+        <description key="ru.andreymarkelov.atlas.plugins.promjiraexporter.section.link.desc">Setup security token for endpoint.</description>
+        <condition class="com.atlassian.jira.plugin.webfragment.conditions.JiraGlobalPermissionCondition"><param name="permission">admin</param></condition>
+        <link linkId="prom-for-jira-exporter-admin-link">/secure/PromForJiraSecureTokenConfigAction!default.jspa</link>
+    </web-item>
+
+    <!-- Actions -->
+    <webwork1 name="Security Token Actions" key="prom-for-jira-exporter-actions" class="java.lang.Object">
+        <actions>
+            <action name="ru.andreymarkelov.atlas.plugins.promjiraexporter.action.admin.SecureTokenConfigAction" alias="PromForJiraSecureTokenConfigAction">
+                <view name="input">/ru/andreymarkelov/atlas/plugins/promjiraexporter/templates/actions/admin/settings.vm</view>
+                <view name="success">/ru/andreymarkelov/atlas/plugins/promjiraexporter/templates/actions/admin/settings.vm</view>
+                <view name="permissionviolation">/secure/views/permissionviolation.jsp</view>
+            </action>
+        </actions>
+    </webwork1>
 </atlassian-plugin>
