@@ -4,8 +4,6 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
 import io.prometheus.client.hotspot.DefaultExports;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManager;
 
@@ -21,16 +19,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class PrometheusExporter extends HttpServlet {
-    private static final Logger log = LoggerFactory.getLogger(PrometheusExporter.class);
-
     private final CollectorRegistry registry;
-    private final MetricCollector metricCollector;
     private final SecureTokenManager secureTokenManager;
 
     public PrometheusExporter(
             MetricCollector metricCollector,
             SecureTokenManager secureTokenManager) {
-        this.metricCollector = metricCollector;
         this.secureTokenManager = secureTokenManager;
         this.registry = CollectorRegistry.defaultRegistry;
         this.registry.register(metricCollector.getCollector());
