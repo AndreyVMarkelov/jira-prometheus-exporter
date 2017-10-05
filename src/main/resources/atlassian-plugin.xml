@@ -36,6 +36,9 @@
     <component name="Security Token Data Manager" key="prom-for-jira-exporter-data-manager" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManagerImpl">
         <interface>ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManager</interface>
     </component>
+    <component name="Metrics Event Listener" key="prom-jira-exporter-listener" class="ru.andreymarkelov.atlas.listener.MetricListener">
+        <description>This service listens JIRA events.</description>
+    </component>
     <component-import key="pluginSettingsFactory" interface="com.atlassian.sal.api.pluginsettings.PluginSettingsFactory"/>
     <component-import key="applicationProperties" interface="com.atlassian.sal.api.ApplicationProperties"/>
 
