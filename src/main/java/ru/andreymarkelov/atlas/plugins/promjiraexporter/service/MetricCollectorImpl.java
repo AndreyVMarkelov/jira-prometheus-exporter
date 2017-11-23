@@ -2,15 +2,27 @@ package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
+import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
+import javax.servlet.ServletException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 public class MetricCollectorImpl extends Collector implements MetricCollector {
+    private final Histogram requestDurationOnPath = Histogram.build()
+            .name("jira_request_duration_on_path")
+            .help("Request duration on path")
+            .labelNames("path")
+            .create();
+
     private final Counter issueUpdateCounter = Counter.build()
             .name("jira_issue_update_count")
             .help("Issue Update Count")
-            .labelNames("projectKey", "issueKey", "username")
+            .labelNames("projectKey", "issueKey", "eventType", "username")
             .create();
 
     private final Counter issueViewCounter = Counter.build()
@@ -38,8 +50,20 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
             .create();
 
     @Override
-    public void issueUpdateCounter(String projectKey, String issueKey, String username) {
-        issueUpdateCounter.labels(projectKey, issueKey, username).inc();
+    public void requestDuration(String level1, ExceptionRunnable runnable) throws IOException, ServletException {
+        Histogram.Timer level1Timer = isNotBlank(level1) ? requestDurationOnPath.labels(level1).startTimer() : null;
+        try {
+            runnable.run();
+        } finally {
+            if (level1Timer != null) {
+                level1Timer.observeDuration();
+            }
+        }
+    }
+
+    @Override
+    public void issueUpdateCounter(String projectKey, String issueKey, String eventType, String username) {
+        issueUpdateCounter.labels(projectKey, issueKey, eventType, username).inc();
     }
 
     @Override
@@ -75,6 +99,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
         result.addAll(userLoginCounter.collect());
         result.addAll(userLogoutCounter.collect());
         result.addAll(dashboardViewCounter.collect());
+        result.addAll(requestDurationOnPath.collect());
         return result;
     }
 }

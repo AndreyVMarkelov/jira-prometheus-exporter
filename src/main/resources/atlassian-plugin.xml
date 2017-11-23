@@ -63,4 +63,13 @@
             </action>
         </actions>
     </webwork1>
+
+    <!-- Servlet filter -->
+    <servlet-filter name="Metrics Filter" key="prom-for-jira-exporter-filter" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.servlet.AllEndpointFilter" location="before-login" weight="100">
+        <description>Prometheus statistics filter.</description>
+        <url-pattern>/*</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </servlet-filter>
 </atlassian-plugin>

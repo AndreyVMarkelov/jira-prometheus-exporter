@@ -5,6 +5,7 @@ import com.atlassian.event.api.EventPublisher;
 import com.atlassian.jira.event.DashboardViewEvent;
 import com.atlassian.jira.event.issue.IssueEvent;
 import com.atlassian.jira.event.issue.IssueViewEvent;
+import com.atlassian.jira.event.type.EventTypeManager;
 import com.atlassian.jira.event.user.LoginEvent;
 import com.atlassian.jira.event.user.LogoutEvent;
 import com.atlassian.jira.issue.Issue;
@@ -18,17 +19,19 @@ import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector;
 public class MetricListener implements InitializingBean, DisposableBean {
     private final EventPublisher eventPublisher;
     private final IssueManager issueManager;
+    private final EventTypeManager eventTypeManager;
     private final JiraAuthenticationContext jiraAuthenticationContext;
     private final MetricCollector metricCollector;
-
 
     public MetricListener(
             EventPublisher eventPublisher,
             IssueManager issueManager,
+            EventTypeManager eventTypeManager,
             JiraAuthenticationContext jiraAuthenticationContext,
             MetricCollector metricCollector) {
         this.eventPublisher = eventPublisher;
         this.issueManager = issueManager;
+        this.eventTypeManager = eventTypeManager;
         this.jiraAuthenticationContext = jiraAuthenticationContext;
         this.metricCollector = metricCollector;
     }
@@ -47,7 +50,13 @@ public class MetricListener implements InitializingBean, DisposableBean {
     public void onIssueEvent(IssueEvent issueEvent) {
         Issue issue = issueEvent.getIssue();
         if (issue != null) {
-            metricCollector.issueUpdateCounter(issue.getProjectObject().getKey(), issue.getKey(), getCurrentUser());
+            String eventType = "";
+            try {
+                eventType = eventTypeManager.getEventType(issueEvent.getEventTypeId()).getName();
+            } catch (IllegalArgumentException e) {
+            }
+            eventTypeManager.getEventType(issueEvent.getEventTypeId());
+            metricCollector.issueUpdateCounter(issue.getProjectObject().getKey(), issue.getKey(), eventType, getCurrentUser());
         }
     }
 
