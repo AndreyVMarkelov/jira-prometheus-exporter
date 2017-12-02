@@ -50,8 +50,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
             .create();
 
     @Override
-    public void requestDuration(String level1, ExceptionRunnable runnable) throws IOException, ServletException {
-        Histogram.Timer level1Timer = isNotBlank(level1) ? requestDurationOnPath.labels(level1).startTimer() : null;
+    public void requestDuration(String path, ExceptionRunnable runnable) throws IOException, ServletException {
+        Histogram.Timer level1Timer = isNotBlank(path) ? requestDurationOnPath.labels(path).startTimer() : null;
         try {
             runnable.run();
         } finally {

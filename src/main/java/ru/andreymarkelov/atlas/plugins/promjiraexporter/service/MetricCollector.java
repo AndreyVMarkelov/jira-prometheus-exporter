@@ -13,5 +13,5 @@ public interface MetricCollector {
     void userLoginCounter(String username);
     void userLogoutCounter(String username);
     void dashboardViewCounter(Long dashboardId, String username);
-    void requestDuration(String level1, ExceptionRunnable runnable) throws IOException, ServletException;
+    void requestDuration(String path, ExceptionRunnable runnable) throws IOException, ServletException;
 }
