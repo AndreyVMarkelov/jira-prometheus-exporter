@@ -2,9 +2,11 @@
 
 ## Simple example
 
-* Jvm Memory
-* Jvm threads deadlock monitor
-* Jvm threads
-* Jira issue counts
+* Memory Used
+* Threads
+* GC
+* JIRA Issue Per Project
+* JIRA Issue Per User
+* Request Duration
 
-![image](img/dashboard-example.png)
+![image](img/grafana-jira-dashboard.png)
