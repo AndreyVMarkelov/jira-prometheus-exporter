@@ -18,6 +18,7 @@
     <!-- Web Resources -->
     <web-resource key="prom-for-jira-exporter-resources" name="Web Resources">
         <dependency>com.atlassian.auiplugin:ajs</dependency>
+        <resource type="download" name="vue.min.js" location="/ru/andreymarkelov/atlas/plugins/promjiraexporter/js/vue.min.js"/>
         <resource type="download" name="images/" location="/ru/andreymarkelov/atlas/plugins/promjiraexporter/images"/>
         <context>prom-for-jira-exporter</context>
     </web-resource>

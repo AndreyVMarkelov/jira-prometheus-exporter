@@ -63,6 +63,7 @@
                 <version>${amps.version}</version>
                 <extensions>true</extensions>
                 <configuration>
+                    <compressResources>false</compressResources>
                     <productVersion>${jira.version}</productVersion>
                     <productDataVersion>${jira.version}</productDataVersion>
                 </configuration>

@@ -7,6 +7,7 @@
         $webResourceManager.requireResource("jira.webresources:global-static")
         $webResourceManager.requireResource("jira.webresources:jira-global")
         $webResourceManager.requireResource("com.atlassian.auiplugin:ajs")
+        $webResourceManager.requireResourcesForContext("prom-for-jira-exporter")
     </head>
     <body class="aui">
         <section id="content" role="main">
@@ -29,23 +30,46 @@
                             </p>
                         </div>
                         #end
-                        <form class="aui" name="jiraform" method="post" action="PromForJiraSecureTokenConfigAction.jspa">
-                            <input type="hidden" name="atl_token" value="$atl_token"/>
-                            <div class="field-group">
-                                <label for="token">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token"):</label>
-                                <input class="text long-field" type="text" id="token" name="token" value="$token"/>
-                                #if($action.getErrors().containsKey("token"))<div class="error">$action.getErrors().get("token")</div>#end
-                                <div class="description">$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token.desc")</div>
-                            </div>
-                            <div class="buttons-container">
-                                <div class="buttons">
-                                    <input class="button submit" type="submit" value='$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.action.save")'/>
+                        <div id="base-form">
+                            <form class="aui" name="jiraform" method="post" action="PromForJiraSecureTokenConfigAction.jspa">
+                                <input type="hidden" name="atl_token" value="$atl_token"/>
+                                <div class="field-group">
+                                    <label for="token">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token"):</label>
+                                    <input class="text long-field" v-model="storedToken" type="text" id="token" name="token"/>
+                                    <button class="aui-button" @click.prevent="generateToken">Generate</button>
+                                    #if($action.getErrors().containsKey("token"))<div class="error">$action.getErrors().get("token")</div>#end
+                                    <div class="description">$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token.desc")</div>
                                 </div>
-                            </div>
-                        </form>
+                                <div class="buttons-container">
+                                    <div class="buttons">
+                                        <input class="button submit" type="submit" value='$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.action.save")'/>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
                     </section>
                 </div>
             </div>
         </section>
+        <script>
+            new Vue({
+                el: "#base-form",
+                data() {
+                    return {
+                        storedToken: "$!{token}",
+                        possible: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                    }
+                },
+                methods: {
+                    generateToken: function () {
+                        var res = "";
+                        for (var i = 0; i < 35; i++) {
+                            res += this.possible.charAt(Math.floor(Math.random() * this.possible.length));
+                        }
+                        this.storedToken = res;
+                    }
+                }
+            });
+        </script>
     </body>
 </html>
