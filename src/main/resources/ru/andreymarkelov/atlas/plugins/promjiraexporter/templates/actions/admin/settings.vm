@@ -16,6 +16,11 @@
                     <div class="aui-page-header-main">
                         <h1>$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.title")</h1>
                         <p>$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.title.desc")</p>
+                        <p>
+                            <span class="aui-icon aui-icon-small aui-iconfont-info"></span>
+                            $action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.linkdesc")
+                            <a target="_blank" href="${baseurl}/plugins/servlet/prometheus/metrics#if($!{token} != "")?token=${token}#end">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.link")</a>.
+                        </p>
                     </div>
                 </div>
             </header>
