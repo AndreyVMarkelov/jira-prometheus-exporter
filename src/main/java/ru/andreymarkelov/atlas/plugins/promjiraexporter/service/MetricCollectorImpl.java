@@ -1,7 +1,10 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
+import com.atlassian.jira.issue.IssueManager;
+import com.atlassian.jira.project.ProjectManager;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
@@ -13,6 +16,22 @@ import java.util.List;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class MetricCollectorImpl extends Collector implements MetricCollector {
+    private final IssueManager issueManager;
+    private final ProjectManager projectManager;
+
+    public MetricCollectorImpl(
+            IssueManager issueManager,
+            ProjectManager projectManager) {
+        this.issueManager = issueManager;
+        this.projectManager = projectManager;
+    }
+
+    private final Gauge totalIssuesCounter = Gauge.build()
+            .name("jira_total_issues_gauge")
+            .help("Total Issues Per Project Gauge")
+            .labelNames("projectKey")
+            .create();
+
     private final Histogram requestDurationOnPath = Histogram.build()
             .name("jira_request_duration_on_path")
             .help("Request duration on path")
@@ -93,6 +112,11 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
 
     @Override
     public List<MetricFamilySamples> collect() {
+        // resolve count issues
+        projectManager.getProjects()
+                .forEach(x -> totalIssuesCounter.labels(x.getKey()).set(issueManager.getIssueCountForProject(x.getId())));
+
+        // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
         result.addAll(issueUpdateCounter.collect());
         result.addAll(issueViewCounter.collect());
@@ -100,6 +124,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
         result.addAll(userLogoutCounter.collect());
         result.addAll(dashboardViewCounter.collect());
         result.addAll(requestDurationOnPath.collect());
+        result.addAll(totalIssuesCounter.collect());
         return result;
     }
 }
