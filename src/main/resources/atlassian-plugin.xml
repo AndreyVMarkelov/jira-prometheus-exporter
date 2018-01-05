@@ -72,5 +72,9 @@
         <dispatcher>REQUEST</dispatcher>
         <dispatcher>FORWARD</dispatcher>
         <dispatcher>ERROR</dispatcher>
+        <init-param>
+            <param-name>system-actions-enabled</param-name>
+            <param-value>true</param-value>
+        </init-param>
     </servlet-filter>
 </atlassian-plugin>

@@ -1,35 +1,64 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
+import com.atlassian.jira.cluster.ClusterManager;
+import com.atlassian.jira.config.util.AttachmentPathManager;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.project.ProjectManager;
+import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
 import javax.servlet.ServletException;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.commons.io.FileUtils.sizeOfDirectory;
+import static org.apache.commons.lang3.StringUtils.defaultString;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class MetricCollectorImpl extends Collector implements MetricCollector {
+    private static final Logger log = LoggerFactory.getLogger(MetricCollectorImpl.class);
+
     private final IssueManager issueManager;
     private final ProjectManager projectManager;
+    private final AttachmentPathManager attachmentPathManager;
+    private final JiraUserSessionTracker jiraUserSessionTracker;
+    private final ClusterManager clusterManager;
 
     public MetricCollectorImpl(
             IssueManager issueManager,
-            ProjectManager projectManager) {
+            ProjectManager projectManager,
+            AttachmentPathManager attachmentPathManager,
+            ClusterManager clusterManager) {
         this.issueManager = issueManager;
         this.projectManager = projectManager;
+        this.attachmentPathManager = attachmentPathManager;
+        this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
+        this.clusterManager = clusterManager;
     }
 
-    private final Gauge totalIssuesCounter = Gauge.build()
+    private final Gauge totalIssuesGauge = Gauge.build()
             .name("jira_total_issues_gauge")
             .help("Total Issues Per Project Gauge")
             .labelNames("projectKey")
+            .create();
+
+    private final Gauge totalSessionsGauge = Gauge.build()
+            .name("jira_total_sessions_gauge")
+            .help("Total Sessions Gauge")
+            .labelNames("ip", "username", "requestsCount")
+            .create();
+
+    private final Gauge totalAttachmentSizeGauge = Gauge.build()
+            .name("jira_total_attachment_size_gauge")
+            .help("Total attachments Size Gauge")
             .create();
 
     private final Histogram requestDurationOnPath = Histogram.build()
@@ -114,7 +143,18 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
     public List<MetricFamilySamples> collect() {
         // resolve count issues
         projectManager.getProjects()
-                .forEach(x -> totalIssuesCounter.labels(x.getKey()).set(issueManager.getIssueCountForProject(x.getId())));
+                .forEach(x -> totalIssuesGauge.labels(x.getKey()).set(issueManager.getIssueCountForProject(x.getId())));
+
+        // resolve sessions count
+        jiraUserSessionTracker.getSnapshot()
+                .forEach(x -> totalSessionsGauge.labels(defaultString(x.getIpAddress()), defaultString(x.getUserName()), Long.toString(x.getRequestCount())).set(1d));
+
+        // resolve attachment size
+        try {
+            totalAttachmentSizeGauge.set(sizeOfDirectory(new File(attachmentPathManager.getAttachmentPath())));
+        } catch (Exception ex) {
+            log.error("Cannot resolve attachments size", ex);
+        }
 
         // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
@@ -124,7 +164,9 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
         result.addAll(userLogoutCounter.collect());
         result.addAll(dashboardViewCounter.collect());
         result.addAll(requestDurationOnPath.collect());
-        result.addAll(totalIssuesCounter.collect());
+        result.addAll(totalIssuesGauge.collect());
+        result.addAll(totalSessionsGauge.collect());
+        result.addAll(totalAttachmentSizeGauge.collect());
         return result;
     }
 }
