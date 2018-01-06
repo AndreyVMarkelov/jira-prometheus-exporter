@@ -44,21 +44,26 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
         this.clusterManager = clusterManager;
     }
 
-    private final Gauge totalIssuesGauge = Gauge.build()
+    private final Gauge issuesGauge = Gauge.build()
             .name("jira_total_issues_gauge")
-            .help("Total Issues Per Project Gauge")
+            .help("Issues Per Project Gauge")
             .labelNames("projectKey")
             .create();
 
-    private final Gauge totalSessionsGauge = Gauge.build()
+    private final Gauge sessionsGauge = Gauge.build()
             .name("jira_total_sessions_gauge")
-            .help("Total Sessions Gauge")
+            .help("Sessions Gauge")
             .labelNames("ip", "username", "requestsCount")
             .create();
 
     private final Gauge totalAttachmentSizeGauge = Gauge.build()
             .name("jira_total_attachment_size_gauge")
-            .help("Total attachments Size Gauge")
+            .help("Total Attachments Size Gauge")
+            .create();
+
+    private final Gauge totalClusterNodeGauge = Gauge.build()
+            .name("jira_total_cluster_nodes_gauge")
+            .help("Total Cluster Nodes Gauge")
             .create();
 
     private final Histogram requestDurationOnPath = Histogram.build()
@@ -143,18 +148,22 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
     public List<MetricFamilySamples> collect() {
         // resolve count issues
         projectManager.getProjects()
-                .forEach(x -> totalIssuesGauge.labels(x.getKey()).set(issueManager.getIssueCountForProject(x.getId())));
+                .forEach(x -> issuesGauge.labels(x.getKey()).set(issueManager.getIssueCountForProject(x.getId())));
 
         // resolve sessions count
         jiraUserSessionTracker.getSnapshot()
-                .forEach(x -> totalSessionsGauge.labels(defaultString(x.getIpAddress()), defaultString(x.getUserName()), Long.toString(x.getRequestCount())).set(1d));
+                .forEach(x -> sessionsGauge.labels(defaultString(x.getIpAddress()), defaultString(x.getUserName()), Long.toString(x.getRequestCount())).set(1d));
 
         // resolve attachment size
+        File attachmentDirectory = new File(attachmentPathManager.getAttachmentPath());
         try {
-            totalAttachmentSizeGauge.set(sizeOfDirectory(new File(attachmentPathManager.getAttachmentPath())));
+            totalAttachmentSizeGauge.set(sizeOfDirectory(attachmentDirectory));
         } catch (Exception ex) {
             log.error("Cannot resolve attachments size", ex);
         }
+
+        // resolve cluster metrics
+        totalClusterNodeGauge.set(clusterManager.getAllNodes().size());
 
         // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
@@ -164,9 +173,10 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
         result.addAll(userLogoutCounter.collect());
         result.addAll(dashboardViewCounter.collect());
         result.addAll(requestDurationOnPath.collect());
-        result.addAll(totalIssuesGauge.collect());
-        result.addAll(totalSessionsGauge.collect());
+        result.addAll(issuesGauge.collect());
+        result.addAll(sessionsGauge.collect());
         result.addAll(totalAttachmentSizeGauge.collect());
+        result.addAll(totalClusterNodeGauge.collect());
         return result;
     }
 }
