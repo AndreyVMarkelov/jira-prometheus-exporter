@@ -5,7 +5,6 @@ import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.jira.cluster.ClusterManager;
 import com.atlassian.jira.config.util.AttachmentPathManager;
 import com.atlassian.jira.issue.IssueManager;
-import com.atlassian.jira.project.ProjectManager;
 import com.atlassian.jira.user.util.UserUtil;
 import com.atlassian.jira.util.system.SystemInfoUtils;
 import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
@@ -16,30 +15,23 @@ import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.DisposableBean;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
 import javax.servlet.ServletException;
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ForkJoinPool;
 
 import static com.atlassian.jira.application.ApplicationKeys.CORE;
+import static java.util.Collections.emptyList;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.apache.commons.lang3.StringUtils.defaultString;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean {
+public class MetricCollectorImpl extends Collector implements MetricCollector {
     private static final Logger log = LoggerFactory.getLogger(MetricCollectorImpl.class);
 
-    private ForkJoinPool forkJoinPool = new ForkJoinPool();
-
     private final IssueManager issueManager;
-    private final ProjectManager projectManager;
     private final AttachmentPathManager attachmentPathManager;
     private final JiraUserSessionTracker jiraUserSessionTracker;
     private final ClusterManager clusterManager;
@@ -49,14 +41,12 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
     public MetricCollectorImpl(
             IssueManager issueManager,
-            ProjectManager projectManager,
             AttachmentPathManager attachmentPathManager,
             ClusterManager clusterManager,
             UserUtil userUtil,
             SystemInfoUtils systemInfoUtils,
             ApplicationManager jiraApplicationManager) {
         this.issueManager = issueManager;
-        this.projectManager = projectManager;
         this.attachmentPathManager = attachmentPathManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
@@ -87,14 +77,12 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
     private final Gauge issuesGauge = Gauge.build()
             .name("jira_total_issues_gauge")
-            .help("Issues Per Project Gauge")
-            .labelNames("projectKey")
+            .help("Issues Gauge")
             .create();
 
     private final Gauge sessionsGauge = Gauge.build()
             .name("jira_total_sessions_gauge")
             .help("Sessions Gauge")
-            .labelNames("ip", "username", "requestsCount")
             .create();
 
     private final Gauge totalAttachmentSizeGauge = Gauge.build()
@@ -185,35 +173,24 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         return this;
     }
 
-    @Override
-    public List<MetricFamilySamples> collect() {
+    private List<MetricFamilySamples> collectInternal() {
         // resolve count issues
-        forkJoinPool.submit(() -> {
-            projectManager.getProjects()
-                    .stream()
-                    .parallel()
-                    .forEach(x -> issuesGauge.labels(x.getKey()).set(issueManager.getIssueCountForProject(x.getId())));
-        });
+        issuesGauge.set(issueManager.getIssueCount());
 
         // resolve sessions count
-        forkJoinPool.submit(() -> {
-            jiraUserSessionTracker.getSnapshot()
-                    .stream()
-                    .parallel()
-                    .forEach(x -> sessionsGauge.labels(defaultString(x.getIpAddress()), defaultString(x.getUserName()), Long.toString(x.getRequestCount())).set(1d));
-        });
+        sessionsGauge.set(jiraUserSessionTracker.getSnapshot().size());
 
         // resolve attachment size
-        File attachmentDirectory = new File(attachmentPathManager.getAttachmentPath());
-        try {
-            long size = Files.walk(attachmentDirectory.toPath())
-                    .filter(p -> p.toFile().isFile())
-                    .mapToLong(p -> p.toFile().length())
-                    .sum();
-            totalAttachmentSizeGauge.set(size);
-        } catch (Exception ex) {
-            log.error("Cannot resolve attachments size", ex);
-        }
+//        File attachmentDirectory = new File(attachmentPathManager.getAttachmentPath());
+//        try {
+//            long size = Files.walk(attachmentDirectory.toPath())
+//                    .filter(p -> p.toFile().isFile())
+//                    .mapToLong(p -> p.toFile().length())
+//                    .sum();
+//            totalAttachmentSizeGauge.set(size);
+//        } catch (Exception ex) {
+//            log.error("Cannot resolve attachments size", ex);
+//        }
 
         // resolve cluster metrics
         totalClusterNodeGauge.set(clusterManager.getAllNodes().size());
@@ -251,7 +228,12 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     }
 
     @Override
-    public void destroy() throws Exception {
-        forkJoinPool.shutdownNow();
+    public List<MetricFamilySamples> collect() {
+        try {
+            return collectInternal();
+        } catch (Throwable throwable) {
+            log.error("Error collect prometheus metrics", throwable);
+            return emptyList();
+        }
     }
 }
