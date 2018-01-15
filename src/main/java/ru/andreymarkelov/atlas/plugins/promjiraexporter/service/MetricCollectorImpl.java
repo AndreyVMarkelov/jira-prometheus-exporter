@@ -3,56 +3,57 @@ package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 import com.atlassian.application.api.Application;
 import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.jira.cluster.ClusterManager;
-import com.atlassian.jira.config.util.AttachmentPathManager;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.user.util.UserUtil;
-import com.atlassian.jira.util.system.SystemInfoUtils;
 import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
 import com.atlassian.sal.api.license.SingleProductLicenseDetailsView;
 import io.prometheus.client.Collector;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
+import io.prometheus.client.hotspot.DefaultExports;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 import static com.atlassian.jira.application.ApplicationKeys.CORE;
+import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-public class MetricCollectorImpl extends Collector implements MetricCollector {
+public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean, InitializingBean {
     private static final Logger log = LoggerFactory.getLogger(MetricCollectorImpl.class);
 
     private final IssueManager issueManager;
-    private final AttachmentPathManager attachmentPathManager;
     private final JiraUserSessionTracker jiraUserSessionTracker;
     private final ClusterManager clusterManager;
     private final UserUtil userUtil;
-    private final SystemInfoUtils systemInfoUtils;
     private final ApplicationManager jiraApplicationManager;
+    private final CollectorRegistry registry;
 
     public MetricCollectorImpl(
             IssueManager issueManager,
-            AttachmentPathManager attachmentPathManager,
             ClusterManager clusterManager,
             UserUtil userUtil,
-            SystemInfoUtils systemInfoUtils,
             ApplicationManager jiraApplicationManager) {
         this.issueManager = issueManager;
-        this.attachmentPathManager = attachmentPathManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
         this.userUtil = userUtil;
-        this.systemInfoUtils = systemInfoUtils;
         this.jiraApplicationManager = jiraApplicationManager;
+        this.registry = CollectorRegistry.defaultRegistry;
     }
 
     private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
@@ -168,29 +169,12 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
         dashboardViewCounter.labels(Long.toString(dashboardId), username).inc();
     }
 
-    @Override
-    public Collector getCollector() {
-        return this;
-    }
-
     private List<MetricFamilySamples> collectInternal() {
         // resolve count issues
         issuesGauge.set(issueManager.getIssueCount());
 
         // resolve sessions count
         sessionsGauge.set(jiraUserSessionTracker.getSnapshot().size());
-
-        // resolve attachment size
-//        File attachmentDirectory = new File(attachmentPathManager.getAttachmentPath());
-//        try {
-//            long size = Files.walk(attachmentDirectory.toPath())
-//                    .filter(p -> p.toFile().isFile())
-//                    .mapToLong(p -> p.toFile().length())
-//                    .sum();
-//            totalAttachmentSizeGauge.set(size);
-//        } catch (Exception ex) {
-//            log.error("Cannot resolve attachments size", ex);
-//        }
 
         // resolve cluster metrics
         totalClusterNodeGauge.set(clusterManager.getAllNodes().size());
@@ -228,12 +212,31 @@ public class MetricCollectorImpl extends Collector implements MetricCollector {
     }
 
     @Override
+    public void destroy() throws Exception {
+        this.registry.unregister(this);
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        this.registry.register(this);
+        DefaultExports.initialize();
+    }
+
+    @Override
+    public CollectorRegistry getRegistry() {
+        return registry;
+    }
+
+    @Override
     public List<MetricFamilySamples> collect() {
+        Instant start = now();
         try {
             return collectInternal();
         } catch (Throwable throwable) {
             log.error("Error collect prometheus metrics", throwable);
             return emptyList();
+        } finally {
+            log.debug("Collect execution time is: {}ms", Duration.between(start, now()).toMillis());
         }
     }
 }
