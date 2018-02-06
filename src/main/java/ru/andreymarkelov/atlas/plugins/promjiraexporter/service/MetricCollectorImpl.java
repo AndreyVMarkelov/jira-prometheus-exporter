@@ -5,6 +5,7 @@ import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.jira.cluster.ClusterManager;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.user.util.UserUtil;
+import com.atlassian.jira.web.session.currentusers.JiraUserSession;
 import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
 import com.atlassian.sal.api.license.SingleProductLicenseDetailsView;
 import io.prometheus.client.Collector;
@@ -25,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.atlassian.jira.application.ApplicationKeys.CORE;
 import static java.time.Instant.now;
@@ -81,9 +83,14 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("Issues Gauge")
             .create();
 
-    private final Gauge sessionsGauge = Gauge.build()
+    private final Gauge totalSessionsGauge = Gauge.build()
             .name("jira_total_sessions_gauge")
             .help("Sessions Gauge")
+            .create();
+
+    private final Gauge authorizedSessionsGauge = Gauge.build()
+            .name("jira_authorized_sessions_gauge")
+            .help("Authorized Sessions Gauge")
             .create();
 
     private final Gauge totalAttachmentSizeGauge = Gauge.build()
@@ -174,7 +181,14 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         issuesGauge.set(issueManager.getIssueCount());
 
         // resolve sessions count
-        sessionsGauge.set(jiraUserSessionTracker.getSnapshot().size());
+        List<JiraUserSession> snapshot = jiraUserSessionTracker.getSnapshot();
+        totalSessionsGauge.set(snapshot.size());
+
+        int authorizedSessions = snapshot.stream()
+                .filter(e -> e.getUserName() != null)
+                .collect(Collectors.toList())
+                .size();
+        authorizedSessionsGauge.set(authorizedSessions);
 
         // resolve cluster metrics
         totalClusterNodeGauge.set(clusterManager.getAllNodes().size());
@@ -201,7 +215,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(dashboardViewCounter.collect());
         result.addAll(requestDurationOnPath.collect());
         result.addAll(issuesGauge.collect());
-        result.addAll(sessionsGauge.collect());
+        result.addAll(totalSessionsGauge.collect());
+        result.addAll(authorizedSessionsGauge.collect());
         result.addAll(totalAttachmentSizeGauge.collect());
         result.addAll(totalClusterNodeGauge.collect());
         result.addAll(allUsersGauge.collect());
