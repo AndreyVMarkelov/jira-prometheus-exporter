@@ -37,12 +37,12 @@ public class MetricListener implements InitializingBean, DisposableBean {
     }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
         eventPublisher.register(this);
     }
 
     @Override
-    public void destroy() throws Exception {
+    public void destroy() {
         eventPublisher.unregister(this);
     }
 

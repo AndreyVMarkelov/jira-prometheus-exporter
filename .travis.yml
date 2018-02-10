@@ -1,0 +1,14 @@
+sudo: false
+language: java
+jdk:
+  - oraclejdk8
+
+before_install:
+  - ./setup-atlassian-sdk.sh `pwd`
+  - export PATH=opt/atlassian-plugin-sdk/bin:opt/atlassian-plugin-sdk/apache-maven-*/bin:$PATH
+install:
+  - atlas-mvn install
+script:
+  - atlas-package
+notifications:
+  email: false

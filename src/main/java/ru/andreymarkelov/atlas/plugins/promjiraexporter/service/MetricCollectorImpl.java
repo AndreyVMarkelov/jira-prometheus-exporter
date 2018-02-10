@@ -26,11 +26,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static com.atlassian.jira.application.ApplicationKeys.CORE;
 import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
+import static java.util.Objects.nonNull;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -43,18 +43,21 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final ClusterManager clusterManager;
     private final UserUtil userUtil;
     private final ApplicationManager jiraApplicationManager;
+    private final ScheduledMetricEvaluator scheduledMetricEvaluator;
     private final CollectorRegistry registry;
 
     public MetricCollectorImpl(
             IssueManager issueManager,
             ClusterManager clusterManager,
             UserUtil userUtil,
-            ApplicationManager jiraApplicationManager) {
+            ApplicationManager jiraApplicationManager,
+            ScheduledMetricEvaluator scheduledMetricEvaluator) {
         this.issueManager = issueManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
         this.userUtil = userUtil;
         this.jiraApplicationManager = jiraApplicationManager;
+        this.scheduledMetricEvaluator = scheduledMetricEvaluator;
         this.registry = CollectorRegistry.defaultRegistry;
     }
 
@@ -183,12 +186,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         // resolve sessions count
         List<JiraUserSession> snapshot = jiraUserSessionTracker.getSnapshot();
         totalSessionsGauge.set(snapshot.size());
-
-        int authorizedSessions = snapshot.stream()
-                .filter(e -> e.getUserName() != null)
-                .collect(Collectors.toList())
-                .size();
-        authorizedSessionsGauge.set(authorizedSessions);
+        authorizedSessionsGauge.set(snapshot.stream().filter(e -> nonNull(e.getUserName())).count());
 
         // resolve cluster metrics
         totalClusterNodeGauge.set(clusterManager.getAllNodes().size());
@@ -205,6 +203,9 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             maintenanceExpiryDaysGauge.set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
             allowedUsersGauge.set(licenseDetails.getNumberOfUsers());
         }
+
+        // attachment size
+        totalAttachmentSizeGauge.set(scheduledMetricEvaluator.getTotalAttachmentSize());
 
         // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
@@ -227,12 +228,12 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     }
 
     @Override
-    public void destroy() throws Exception {
+    public void destroy() {
         this.registry.unregister(this);
     }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
         this.registry.register(this);
         DefaultExports.initialize();
     }

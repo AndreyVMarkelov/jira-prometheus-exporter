@@ -40,6 +40,10 @@
     <component name="Metrics Event Listener" key="prom-jira-exporter-listener" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.listener.MetricListener">
         <description>This service listens JIRA events.</description>
     </component>
+    <component name="Scheduled Metrics Evaluator" key="prom-jira-exporter-evaluator" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.service.ScheduledMetricEvaluatorImpl">
+        <description>This service evaluates metrics in separate threads.</description>
+        <interface>ru.andreymarkelov.atlas.plugins.promjiraexporter.service.ScheduledMetricEvaluator</interface>
+    </component>
     <component-import key="pluginSettingsFactory" interface="com.atlassian.sal.api.pluginsettings.PluginSettingsFactory"/>
     <component-import key="applicationProperties" interface="com.atlassian.sal.api.ApplicationProperties"/>
 
