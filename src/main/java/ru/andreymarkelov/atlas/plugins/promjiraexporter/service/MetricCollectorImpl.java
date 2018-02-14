@@ -25,6 +25,7 @@ import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -217,6 +218,11 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("Number Of Http Session Objects Gauge")
             .create();
 
+    private final Gauge jvmUptimeGauge = Gauge.build()
+            .name("jvm_uptime_gauge")
+            .help("JVM Uptime Gauge")
+            .create();
+
     @Override
     public void requestDuration(String path, ExceptionRunnable runnable) throws IOException, ServletException {
         Histogram.Timer level1Timer = isNotBlank(path) ? requestDurationOnPath.labels(path).startTimer() : null;
@@ -306,6 +312,9 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         concurrentRequestsGauge.set(getNullSafeValue(concurrentRequests));
         httpSessionObjectsGauge.set(getNullSafeValue(httpSessionObjects));
 
+        // jvm uptime
+        jvmUptimeGauge.set(ManagementFactory.getRuntimeMXBean().getUptime());
+
         // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
         result.addAll(issueUpdateCounter.collect());
@@ -323,7 +332,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(activeUsersGauge.collect());
         result.addAll(allowedUsersGauge.collect());
         result.addAll(maintenanceExpiryDaysGauge.collect());
-
         result.addAll(dbcpNumActiveGauge.collect());
         result.addAll(dbcpNumIdleGauge.collect());
         result.addAll(dbcpMaxActiveGauge.collect());
@@ -335,6 +343,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(restRequestsGauge.collect());
         result.addAll(concurrentRequestsGauge.collect());
         result.addAll(httpSessionObjectsGauge.collect());
+        result.addAll(jvmUptimeGauge.collect());
 
         return result;
     }
