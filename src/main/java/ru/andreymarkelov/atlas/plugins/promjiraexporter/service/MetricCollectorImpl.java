@@ -2,9 +2,12 @@ package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
 import com.atlassian.application.api.Application;
 import com.atlassian.application.api.ApplicationManager;
+import com.atlassian.instrumentation.Instrument;
+import com.atlassian.instrumentation.InstrumentRegistry;
 import com.atlassian.jira.cluster.ClusterManager;
 import com.atlassian.jira.issue.IssueManager;
-import com.atlassian.jira.user.util.UserUtil;
+import com.atlassian.jira.license.LicenseCountService;
+import com.atlassian.jira.user.util.UserManager;
 import com.atlassian.jira.web.session.currentusers.JiraUserSession;
 import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
 import com.atlassian.sal.api.license.SingleProductLicenseDetailsView;
@@ -22,12 +25,24 @@ import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 import static com.atlassian.jira.application.ApplicationKeys.CORE;
+import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_ACTIVE;
+import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_IDLE;
+import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_MAX;
+import static com.atlassian.jira.instrumentation.InstrumentationName.DB_READS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.DB_WRITES;
+import static com.atlassian.jira.instrumentation.InstrumentationName.WEB_REQUESTS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.REST_REQUESTS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.HTTP_SESSION_OBJECTS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.DB_CONNECTIONS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.DB_CONNECTIONS_BORROWED;
 import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.nonNull;
@@ -41,24 +56,30 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final IssueManager issueManager;
     private final JiraUserSessionTracker jiraUserSessionTracker;
     private final ClusterManager clusterManager;
-    private final UserUtil userUtil;
+    private final UserManager userManager;
+    private final LicenseCountService licenseCountService;
     private final ApplicationManager jiraApplicationManager;
     private final ScheduledMetricEvaluator scheduledMetricEvaluator;
     private final CollectorRegistry registry;
+    private final InstrumentRegistry instrumentRegistry;
 
     public MetricCollectorImpl(
             IssueManager issueManager,
             ClusterManager clusterManager,
-            UserUtil userUtil,
+            UserManager userManager,
+            LicenseCountService licenseCountService,
             ApplicationManager jiraApplicationManager,
-            ScheduledMetricEvaluator scheduledMetricEvaluator) {
+            ScheduledMetricEvaluator scheduledMetricEvaluator,
+            InstrumentRegistry instrumentRegistry) {
         this.issueManager = issueManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
-        this.userUtil = userUtil;
+        this.userManager = userManager;
+        this.licenseCountService = licenseCountService;
         this.jiraApplicationManager = jiraApplicationManager;
         this.scheduledMetricEvaluator = scheduledMetricEvaluator;
         this.registry = CollectorRegistry.defaultRegistry;
+        this.instrumentRegistry = instrumentRegistry;
     }
 
     private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
@@ -142,6 +163,66 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .labelNames("dashboardId", "username")
             .create();
 
+    private final Gauge dbcpNumActiveGauge = Gauge.build()
+            .name("jira_dbcp_num_active_gauge")
+            .help("DBCP Number Of Active Connections Gauge")
+            .create();
+
+    private final Gauge dbcpNumIdleGauge = Gauge.build()
+            .name("jira_dbcp_num_idle_gauge")
+            .help("DBCP Number Of Idle Connections Gauge")
+            .create();
+
+    private final Gauge dbcpMaxActiveGauge = Gauge.build()
+            .name("jira_dbcp_max_active_gauge")
+            .help("DBCP Max Number Of Connections Gauge")
+            .create();
+
+    private final Gauge dbConnectionsGauge = Gauge.build()
+            .name("jira_db_connections_gauge")
+            .help("DB Number Of Connections Gauge")
+            .create();
+
+    private final Gauge dbBorrowedConnectionsGauge = Gauge.build()
+            .name("jira_db_borrowed_connections_gauge")
+            .help("DB Number Of Borrowed Connections Gauge")
+            .create();
+
+    private final Gauge dbReadsGauge = Gauge.build()
+            .name("jira_db_reads_gauge")
+            .help("DB Number Of Reads Gauge")
+            .create();
+
+    private final Gauge dbWritesGauge = Gauge.build()
+            .name("jira_db_writes_gauge")
+            .help("DB Number Of Writes Gauge")
+            .create();
+
+    private final Gauge webRequestsGauge = Gauge.build()
+            .name("jira_web_requests_gauge")
+            .help("Number Of Web Requests Gauge")
+            .create();
+
+    private final Gauge restRequestsGauge = Gauge.build()
+            .name("jira_rest_requests_gauge")
+            .help("Number Of Rest Requests Gauge")
+            .create();
+
+    private final Gauge concurrentRequestsGauge = Gauge.build()
+            .name("jira_concurrent_requests_gauge")
+            .help("Number Of Concurrent Requests Gauge")
+            .create();
+
+    private final Gauge httpSessionObjectsGauge = Gauge.build()
+            .name("jira_http_session_objects_gauge")
+            .help("Number Of Http Session Objects Gauge")
+            .create();
+
+    private final Gauge jvmUptimeGauge = Gauge.build()
+            .name("jvm_uptime_gauge")
+            .help("JVM Uptime Gauge")
+            .create();
+
     @Override
     public void requestDuration(String path, ExceptionRunnable runnable) throws IOException, ServletException {
         Histogram.Timer level1Timer = isNotBlank(path) ? requestDurationOnPath.labels(path).startTimer() : null;
@@ -192,8 +273,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         totalClusterNodeGauge.set(clusterManager.getAllNodes().size());
 
         // users
-        allUsersGauge.set(userUtil.getTotalUserCount());
-        activeUsersGauge.set(userUtil.getActiveUserCount());
+        allUsersGauge.set(userManager.getTotalUserCount());
+        activeUsersGauge.set(licenseCountService.totalBillableUsers());
 
         // license
         SingleProductLicenseDetailsView licenseDetails = jiraApplicationManager.getApplication(CORE)
@@ -206,6 +287,33 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
         // attachment size
         totalAttachmentSizeGauge.set(scheduledMetricEvaluator.getTotalAttachmentSize());
+
+        // instruments
+        Instrument dbcpActive = instrumentRegistry.getInstrument(DBCP_ACTIVE.getInstrumentName());
+        Instrument dbcpIdle = instrumentRegistry.getInstrument(DBCP_IDLE.getInstrumentName());
+        Instrument dbcpMaxActive = instrumentRegistry.getInstrument(DBCP_MAX.getInstrumentName());
+        Instrument dbConnections = instrumentRegistry.getInstrument(DB_CONNECTIONS.getInstrumentName());
+        Instrument dbBorrowedConnections = instrumentRegistry.getInstrument(DB_CONNECTIONS_BORROWED.getInstrumentName());
+        Instrument dbReads = instrumentRegistry.getInstrument(DB_READS.getInstrumentName());
+        Instrument dbWrites = instrumentRegistry.getInstrument(DB_WRITES.getInstrumentName());
+        Instrument webRequests = instrumentRegistry.getInstrument(WEB_REQUESTS.getInstrumentName());
+        Instrument restRequests = instrumentRegistry.getInstrument(REST_REQUESTS.getInstrumentName());
+        Instrument concurrentRequests = instrumentRegistry.getInstrument(CONCURRENT_REQUESTS.getInstrumentName());
+        Instrument httpSessionObjects = instrumentRegistry.getInstrument(HTTP_SESSION_OBJECTS.getInstrumentName());
+        dbcpNumActiveGauge.set(getNullSafeValue(dbcpActive));
+        dbcpMaxActiveGauge.set(getNullSafeValue(dbcpMaxActive));
+        dbcpNumIdleGauge.set(getNullSafeValue(dbcpIdle));
+        dbConnectionsGauge.set(getNullSafeValue(dbConnections));
+        dbBorrowedConnectionsGauge.set(getNullSafeValue(dbBorrowedConnections));
+        dbReadsGauge.set(getNullSafeValue(dbReads));
+        dbWritesGauge.set(getNullSafeValue(dbWrites));
+        webRequestsGauge.set(getNullSafeValue(webRequests));
+        restRequestsGauge.set(getNullSafeValue(restRequests));
+        concurrentRequestsGauge.set(getNullSafeValue(concurrentRequests));
+        httpSessionObjectsGauge.set(getNullSafeValue(httpSessionObjects));
+
+        // jvm uptime
+        jvmUptimeGauge.set(ManagementFactory.getRuntimeMXBean().getUptime());
 
         // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
@@ -224,7 +332,27 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(activeUsersGauge.collect());
         result.addAll(allowedUsersGauge.collect());
         result.addAll(maintenanceExpiryDaysGauge.collect());
+        result.addAll(dbcpNumActiveGauge.collect());
+        result.addAll(dbcpNumIdleGauge.collect());
+        result.addAll(dbcpMaxActiveGauge.collect());
+        result.addAll(dbConnectionsGauge.collect());
+        result.addAll(dbBorrowedConnectionsGauge.collect());
+        result.addAll(dbReadsGauge.collect());
+        result.addAll(dbWritesGauge.collect());
+        result.addAll(webRequestsGauge.collect());
+        result.addAll(restRequestsGauge.collect());
+        result.addAll(concurrentRequestsGauge.collect());
+        result.addAll(httpSessionObjectsGauge.collect());
+        result.addAll(jvmUptimeGauge.collect());
+
         return result;
+    }
+
+    private double getNullSafeValue(Instrument instrument) {
+        if (instrument == null) {
+            return -1;
+        }
+        return instrument.getValue();
     }
 
     @Override
