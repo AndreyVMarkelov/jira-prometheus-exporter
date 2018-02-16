@@ -21,6 +21,10 @@
                             $action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.linkdesc")
                             <a target="_blank" href="${baseurl}/plugins/servlet/prometheus/metrics#if($!{token} != "")?token=${token}#end">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.link")</a>.
                         </p>
+                        <p>
+                            <span class="aui-icon aui-icon-small aui-iconfont-info"></span>
+                            $action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.lastexecution") ${lastExecutionTimestamp}
+                        </p>
                     </div>
                 </div>
             </header>
@@ -45,6 +49,12 @@
                                     #if($action.getErrors().containsKey("token"))<div class="error">$action.getErrors().get("token")</div>#end
                                     <div class="description">$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token.desc")</div>
                                 </div>
+                                <div class="field-group">
+                                    <label for="delay">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.delay"):<span class="aui-icon icon-required">required</span></label>
+                                    <input id="delay" name="delay" v-model="storedDelay" type="text" class="text">
+                                    #if($action.getErrors().containsKey("delay"))<div class="error">$action.getErrors().get("delay")</div>#end
+                                    <div class="description">$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.delay.desc")</div>
+                                </div>
                                 <div class="buttons-container">
                                     <div class="buttons">
                                         <input class="button submit" type="submit" value='$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.action.save")'/>
@@ -62,6 +72,7 @@
                 data() {
                     return {
                         storedToken: "$!{token}",
+                        storedDelay: "$!{delay}",
                         possible: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
                     }
                 },
