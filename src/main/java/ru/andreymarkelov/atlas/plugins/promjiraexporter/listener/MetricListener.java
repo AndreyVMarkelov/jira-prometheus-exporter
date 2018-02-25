@@ -56,7 +56,7 @@ public class MetricListener implements InitializingBean, DisposableBean {
             } catch (IllegalArgumentException e) {
             }
             eventTypeManager.getEventType(issueEvent.getEventTypeId());
-            metricCollector.issueUpdateCounter(issue.getProjectObject().getKey(), issue.getKey(), eventType, getCurrentUser());
+            metricCollector.issueUpdateCounter(issue.getProjectObject().getKey(), eventType, getCurrentUser());
         }
     }
 
@@ -69,7 +69,7 @@ public class MetricListener implements InitializingBean, DisposableBean {
     public void onIssueViewEvent(IssueViewEvent issueViewEvent) {
         Issue issue = issueManager.getIssueObject(issueViewEvent.getId());
         if (issue != null) {
-            metricCollector.issueViewCounter(issue.getProjectObject().getKey(), issue.getKey(), getCurrentUser());
+            metricCollector.issueViewCounter(issue.getProjectObject().getKey(), getCurrentUser());
         }
     }
 

@@ -20,9 +20,9 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static java.lang.Thread.MIN_PRIORITY;
+import static java.util.Optional.ofNullable;
 import static java.util.concurrent.Executors.defaultThreadFactory;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
-
 
 public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, DisposableBean, InitializingBean {
     private static final Logger log = LoggerFactory.getLogger(ScheduledMetricEvaluator.class);
@@ -43,9 +43,9 @@ public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, D
     private ScheduledFuture<?> scraper;
     private final Lock lock;
 
-
-    public ScheduledMetricEvaluatorImpl(PluginSettingsFactory pluginSettingsFactory,
-                                        AttachmentPathManager attachmentPathManager) {
+    public ScheduledMetricEvaluatorImpl(
+            PluginSettingsFactory pluginSettingsFactory,
+            AttachmentPathManager attachmentPathManager) {
         this.pluginSettings = pluginSettingsFactory.createSettingsForKey("PLUGIN_PROMETHEUS_FOR_JIRA");
 
         this.attachmentPathManager = attachmentPathManager;
@@ -123,7 +123,6 @@ public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, D
         }
     }
 
-
     @Override
     public long getTotalAttachmentSize() {
         return totalAttachmentSize.get();
@@ -134,16 +133,16 @@ public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, D
         return lastExecutionTimestamp.get();
     }
 
-
     @Override
     public int getDelay() {
-        String storedValue = (String) pluginSettings.get("delay");
-        return storedValue != null ? Integer.parseInt(storedValue) : 1;
+        return ofNullable(pluginSettings.get("delay"))
+                .map(String.class::cast)
+                .map(Integer::parseInt)
+                .orElse(1);
     }
 
     @Override
     public void setDelay(int delay) {
         pluginSettings.put("delay", String.valueOf(delay));
     }
-
 }

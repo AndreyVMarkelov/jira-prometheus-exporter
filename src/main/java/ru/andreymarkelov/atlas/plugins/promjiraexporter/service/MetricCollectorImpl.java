@@ -32,17 +32,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.atlassian.jira.application.ApplicationKeys.CORE;
+import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_ACTIVE;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_IDLE;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_MAX;
-import static com.atlassian.jira.instrumentation.InstrumentationName.DB_READS;
-import static com.atlassian.jira.instrumentation.InstrumentationName.DB_WRITES;
-import static com.atlassian.jira.instrumentation.InstrumentationName.WEB_REQUESTS;
-import static com.atlassian.jira.instrumentation.InstrumentationName.REST_REQUESTS;
-import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
-import static com.atlassian.jira.instrumentation.InstrumentationName.HTTP_SESSION_OBJECTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DB_CONNECTIONS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DB_CONNECTIONS_BORROWED;
+import static com.atlassian.jira.instrumentation.InstrumentationName.DB_READS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.DB_WRITES;
+import static com.atlassian.jira.instrumentation.InstrumentationName.HTTP_SESSION_OBJECTS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.REST_REQUESTS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.WEB_REQUESTS;
 import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.nonNull;
@@ -136,13 +136,13 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final Counter issueUpdateCounter = Counter.build()
             .name("jira_issue_update_count")
             .help("Issue Update Count")
-            .labelNames("projectKey", "issueKey", "eventType", "username")
+            .labelNames("projectKey", "eventType", "username")
             .create();
 
     private final Counter issueViewCounter = Counter.build()
             .name("jira_issue_view_count")
             .help("Issue View Count")
-            .labelNames("projectKey", "issueKey", "username")
+            .labelNames("projectKey", "username")
             .create();
 
     private final Counter userLoginCounter = Counter.build()
@@ -236,13 +236,13 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     }
 
     @Override
-    public void issueUpdateCounter(String projectKey, String issueKey, String eventType, String username) {
-        issueUpdateCounter.labels(projectKey, issueKey, eventType, username).inc();
+    public void issueUpdateCounter(String projectKey, String eventType, String username) {
+        issueUpdateCounter.labels(projectKey, eventType, username).inc();
     }
 
     @Override
-    public void issueViewCounter(String projectKey, String issueKey, String username) {
-        issueViewCounter.labels(projectKey, issueKey, username).inc();
+    public void issueViewCounter(String projectKey, String username) {
+        issueViewCounter.labels(projectKey, username).inc();
     }
 
     @Override
