@@ -3,10 +3,10 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ru.andreymarkelov.atlas.plugins</groupId>
     <artifactId>prom-jira-exporter</artifactId>
-    <version>1.0.12</version>
+    <version>1.0.13</version>
     <packaging>atlassian-plugin</packaging>
 
-    <name>Prometheus Exporter For JIRA</name>
+    <name>Prometheus Exporter For Jira</name>
     <description>This plugin for Atlassian JIRA provides endpoint to export metrics to prometheus.</description>
 
     <organization>
@@ -85,6 +85,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.6.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -98,7 +99,7 @@
         <amps.version>6.3.15</amps.version>
         <sal-api.version>3.0.0</sal-api.version>
         <lang3.version>3.0</lang3.version>
-        <prometheus.version>0.2.0</prometheus.version>
+        <prometheus.version>0.3.0</prometheus.version>
         <useFastdevCli>false</useFastdevCli>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

@@ -1,6 +1,5 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
-import com.atlassian.application.api.Application;
 import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
@@ -31,7 +30,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.atlassian.jira.application.ApplicationKeys.CORE;
 import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_ACTIVE;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_IDLE;
@@ -85,6 +83,11 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
             .name("jira_maintenance_expiry_days_gauge")
             .help("Maintenance Expiry Days Gauge")
+            .create();
+
+    private final Gauge licenseExpiryDaysGauge = Gauge.build()
+            .name("jira_license_expiry_days_gauge")
+            .help("License Expiry Days Gauge")
             .create();
 
     private final Gauge allUsersGauge = Gauge.build()
@@ -277,11 +280,10 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         activeUsersGauge.set(licenseCountService.totalBillableUsers());
 
         // license
-        SingleProductLicenseDetailsView licenseDetails = jiraApplicationManager.getApplication(CORE)
-                .flatMap(Application::getLicense)
-                .getOrNull();
+        SingleProductLicenseDetailsView licenseDetails = jiraApplicationManager.getPlatform().getLicense().getOrNull();
         if (licenseDetails != null) {
             maintenanceExpiryDaysGauge.set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            licenseExpiryDaysGauge.set(DAYS.convert(licenseDetails.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
             allowedUsersGauge.set(licenseDetails.getNumberOfUsers());
         }
 
@@ -332,6 +334,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(activeUsersGauge.collect());
         result.addAll(allowedUsersGauge.collect());
         result.addAll(maintenanceExpiryDaysGauge.collect());
+        result.addAll(licenseExpiryDaysGauge.collect());
         result.addAll(dbcpNumActiveGauge.collect());
         result.addAll(dbcpNumIdleGauge.collect());
         result.addAll(dbcpMaxActiveGauge.collect());
