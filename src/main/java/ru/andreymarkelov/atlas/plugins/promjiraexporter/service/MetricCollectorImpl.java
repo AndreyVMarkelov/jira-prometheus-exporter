@@ -4,8 +4,10 @@ import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
 import com.atlassian.jira.cluster.ClusterManager;
+import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.license.LicenseCountService;
+import com.atlassian.jira.project.ProjectManager;
 import com.atlassian.jira.user.util.UserManager;
 import com.atlassian.jira.web.session.currentusers.JiraUserSession;
 import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
@@ -16,6 +18,7 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import io.prometheus.client.hotspot.DefaultExports;
+import org.ofbiz.core.entity.GenericEntityException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -28,8 +31,8 @@ import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-
 import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_ACTIVE;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_IDLE;
@@ -60,6 +63,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final ScheduledMetricEvaluator scheduledMetricEvaluator;
     private final CollectorRegistry registry;
     private final InstrumentRegistry instrumentRegistry;
+    private final ProjectManager projectManager;
 
     public MetricCollectorImpl(
             IssueManager issueManager,
@@ -68,7 +72,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             LicenseCountService licenseCountService,
             ApplicationManager jiraApplicationManager,
             ScheduledMetricEvaluator scheduledMetricEvaluator,
-            InstrumentRegistry instrumentRegistry) {
+            InstrumentRegistry instrumentRegistry,
+            ProjectManager projectManager) {
         this.issueManager = issueManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
@@ -78,6 +83,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         this.scheduledMetricEvaluator = scheduledMetricEvaluator;
         this.registry = CollectorRegistry.defaultRegistry;
         this.instrumentRegistry = instrumentRegistry;
+        this.projectManager = projectManager;
     }
 
     private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
@@ -226,6 +232,17 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("JVM Uptime Gauge")
             .create();
 
+    private final Gauge projectsGauge = Gauge.build()
+            .name("jira_projects_gauge")
+            .help("Number Of Projects Gauge")
+            .create();
+
+    private final Gauge timeSpentPerProjectGauge = Gauge.build()
+            .name("time_spent_per_project_seconds_gauge")
+            .help("Time Spent Per Project In Seconds")
+            .labelNames("project")
+            .create();
+
     @Override
     public void requestDuration(String path, ExceptionRunnable runnable) throws IOException, ServletException {
         Histogram.Timer level1Timer = isNotBlank(path) ? requestDurationOnPath.labels(path).startTimer() : null;
@@ -317,6 +334,25 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         // jvm uptime
         jvmUptimeGauge.set(ManagementFactory.getRuntimeMXBean().getUptime());
 
+        // number of projects
+        projectsGauge.set(projectManager.getProjectCount());
+
+        // calculate time spent per project
+        projectManager.getProjects().forEach(p -> {
+            try {
+                // get all issues for the current project and sum the times spent per issue
+                Collection<Long> issueIdsForProject = issueManager.getIssueIdsForProject(p.getId());
+                long totalTimeSpentPerProject = issueManager.getIssueObjects(issueIdsForProject)
+                        .stream()
+                        .filter(i -> i.getTimeSpent() != null)
+                        .mapToLong(Issue::getTimeSpent)
+                        .sum();
+                timeSpentPerProjectGauge.labels(p.getName()).set(totalTimeSpentPerProject);
+            } catch (GenericEntityException e) {
+                log.error("GenericEntityException caught. Detailed message: ", e);
+            }
+        });
+
         // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
         result.addAll(issueUpdateCounter.collect());
@@ -347,6 +383,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(concurrentRequestsGauge.collect());
         result.addAll(httpSessionObjectsGauge.collect());
         result.addAll(jvmUptimeGauge.collect());
+        result.addAll(projectsGauge.collect());
+        result.addAll(timeSpentPerProjectGauge.collect());
 
         return result;
     }
