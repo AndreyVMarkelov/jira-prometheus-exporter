@@ -1,5 +1,13 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import javax.servlet.ServletException;
+
 import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
@@ -9,6 +17,7 @@ import com.atlassian.jira.license.LicenseCountService;
 import com.atlassian.jira.user.util.UserManager;
 import com.atlassian.jira.web.session.currentusers.JiraUserSession;
 import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
+import com.atlassian.mail.queue.MailQueue;
 import com.atlassian.sal.api.license.SingleProductLicenseDetailsView;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
@@ -22,13 +31,11 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import static java.time.Instant.now;
+import static java.util.Collections.emptyList;
+import static java.util.Objects.nonNull;
+import static java.util.concurrent.TimeUnit.DAYS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_ACTIVE;
@@ -41,11 +48,6 @@ import static com.atlassian.jira.instrumentation.InstrumentationName.DB_WRITES;
 import static com.atlassian.jira.instrumentation.InstrumentationName.HTTP_SESSION_OBJECTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.REST_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.WEB_REQUESTS;
-import static java.time.Instant.now;
-import static java.util.Collections.emptyList;
-import static java.util.Objects.nonNull;
-import static java.util.concurrent.TimeUnit.DAYS;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean, InitializingBean {
@@ -60,6 +62,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final ScheduledMetricEvaluator scheduledMetricEvaluator;
     private final CollectorRegistry registry;
     private final InstrumentRegistry instrumentRegistry;
+    private final MailQueue mailQueue;
 
     public MetricCollectorImpl(
             IssueManager issueManager,
@@ -68,7 +71,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             LicenseCountService licenseCountService,
             ApplicationManager jiraApplicationManager,
             ScheduledMetricEvaluator scheduledMetricEvaluator,
-            InstrumentRegistry instrumentRegistry) {
+            InstrumentRegistry instrumentRegistry,
+            MailQueue mailQueue) {
         this.issueManager = issueManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
@@ -78,7 +82,13 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         this.scheduledMetricEvaluator = scheduledMetricEvaluator;
         this.registry = CollectorRegistry.defaultRegistry;
         this.instrumentRegistry = instrumentRegistry;
+        this.mailQueue = mailQueue;
     }
+
+    private final Gauge mailQueueGauge = Gauge.build()
+            .name("jira_mail_queue_gauge")
+            .help("Mail Queue Gauge")
+            .create();
 
     private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
             .name("jira_maintenance_expiry_days_gauge")
@@ -317,6 +327,9 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         // jvm uptime
         jvmUptimeGauge.set(ManagementFactory.getRuntimeMXBean().getUptime());
 
+        // mail
+        mailQueueGauge.set(mailQueue.size());
+
         // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
         result.addAll(issueUpdateCounter.collect());
@@ -347,6 +360,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(concurrentRequestsGauge.collect());
         result.addAll(httpSessionObjectsGauge.collect());
         result.addAll(jvmUptimeGauge.collect());
+        result.addAll(mailQueueGauge.collect());
 
         return result;
     }
