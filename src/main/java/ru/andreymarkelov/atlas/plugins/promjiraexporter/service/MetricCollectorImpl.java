@@ -8,9 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.servlet.ServletException;
 
+import com.atlassian.application.api.Application;
 import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
+import com.atlassian.jira.application.ApplicationKeys;
 import com.atlassian.jira.cluster.ClusterManager;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.license.LicenseCountService;
@@ -292,9 +294,31 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         // license
         SingleProductLicenseDetailsView licenseDetails = jiraApplicationManager.getPlatform().getLicense().getOrNull();
         if (licenseDetails != null) {
-            maintenanceExpiryDaysGauge.set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-            licenseExpiryDaysGauge.set(DAYS.convert(licenseDetails.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            // because nullable
+            if (licenseDetails.getMaintenanceExpiryDate() != null) {
+                maintenanceExpiryDaysGauge.set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            }
+            // because nullable
+            if (licenseDetails.getLicenseExpiryDate() != null) {
+                licenseExpiryDaysGauge.set(DAYS.convert(licenseDetails.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            }
             allowedUsersGauge.set(licenseDetails.getNumberOfUsers());
+        } else {
+            Application application = jiraApplicationManager.getApplication(ApplicationKeys.CORE).getOrNull();
+            if (application != null) {
+                SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
+                if (singleProductLicenseDetailsView != null) {
+                    // because nullable
+                    if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
+                        maintenanceExpiryDaysGauge.set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                    }
+                    // because nullable
+                    if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
+                        licenseExpiryDaysGauge.set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                    }
+                    allowedUsersGauge.set(singleProductLicenseDetailsView.getNumberOfUsers());
+                }
+            }
         }
 
         // attachment size
