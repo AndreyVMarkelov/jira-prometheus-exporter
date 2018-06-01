@@ -99,7 +99,7 @@
         <amps.version>6.3.15</amps.version>
         <sal-api.version>3.0.0</sal-api.version>
         <lang3.version>3.0</lang3.version>
-        <prometheus.version>0.3.0</prometheus.version>
+        <prometheus.version>0.4.0</prometheus.version>
         <useFastdevCli>false</useFastdevCli>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
