@@ -48,7 +48,7 @@
       }
     ]
   },
-  "description": "Shows JIRA JVM and usage metrics",
+  "description": "Shows Jira JVM and usage metrics",
   "editable": true,
   "gnetId": 3066,
   "graphTooltip": 0,
