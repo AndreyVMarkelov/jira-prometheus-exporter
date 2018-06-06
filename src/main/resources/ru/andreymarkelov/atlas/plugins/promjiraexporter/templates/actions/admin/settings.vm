@@ -51,7 +51,7 @@
                                 </div>
                                 <div class="field-group">
                                     <label for="delay">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.delay"):<span class="aui-icon icon-required">required</span></label>
-                                    <input id="delay" name="delay" v-model="storedDelay" type="text" class="text">
+                                    <input id="delay" name="delay" v-model="storedDelay" type="number" min="1" class="text">
                                     #if($action.getErrors().containsKey("delay"))<div class="error">$action.getErrors().get("delay")</div>#end
                                     <div class="description">$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.delay.desc")</div>
                                 </div>
