@@ -55,6 +55,9 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean, InitializingBean {
     private static final Logger log = LoggerFactory.getLogger(MetricCollectorImpl.class);
 
+    // since 7.8.0
+    private static final String QUICKSEARCH_CONCURRENT_REQUESTS = "quicksearch.concurrent.search";
+
     private final IssueManager issueManager;
     private final JiraUserSessionTracker jiraUserSessionTracker;
     private final ClusterManager clusterManager;
@@ -228,6 +231,11 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("Number Of Concurrent Requests Gauge")
             .create();
 
+    private final Gauge concurrentQuicksearchesGauge = Gauge.build()
+            .name("jira_concurrent_number_of_quicksearches_gauge")
+            .help("Concurrent number of quicksearches")
+            .create();
+
     private final Gauge httpSessionObjectsGauge = Gauge.build()
             .name("jira_http_session_objects_gauge")
             .help("Number Of Http Session Objects Gauge")
@@ -382,6 +390,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(webRequestsGauge.collect());
         result.addAll(restRequestsGauge.collect());
         result.addAll(concurrentRequestsGauge.collect());
+        result.addAll(concurrentQuicksearchesGauge.collect());
         result.addAll(httpSessionObjectsGauge.collect());
         result.addAll(jvmUptimeGauge.collect());
         result.addAll(mailQueueGauge.collect());
