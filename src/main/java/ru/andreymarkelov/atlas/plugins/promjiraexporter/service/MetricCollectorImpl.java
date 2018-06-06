@@ -50,6 +50,14 @@ import static com.atlassian.jira.instrumentation.InstrumentationName.DB_WRITES;
 import static com.atlassian.jira.instrumentation.InstrumentationName.HTTP_SESSION_OBJECTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.REST_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.WEB_REQUESTS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.QUICKSEARCH_CONCURRENT_REQUESTS;
+
+import static java.time.Instant.now;
+import static java.util.Collections.emptyList;
+import static java.util.Objects.nonNull;
+import static java.util.concurrent.TimeUnit.DAYS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean, InitializingBean {
@@ -238,6 +246,11 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("JVM Uptime Gauge")
             .create();
 
+    private final Gauge concurrentQuicksearchesGauge = Gauge.build()
+            .name("jira_concurrent_number_of_quicksearches_gauge")
+            .help("Concurrent number of quicksearches")
+            .create();
+
     @Override
     public void requestDuration(String path, ExceptionRunnable runnable) throws IOException, ServletException {
         Histogram.Timer level1Timer = isNotBlank(path) ? requestDurationOnPath.labels(path).startTimer() : null;
@@ -336,6 +349,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         Instrument restRequests = instrumentRegistry.getInstrument(REST_REQUESTS.getInstrumentName());
         Instrument concurrentRequests = instrumentRegistry.getInstrument(CONCURRENT_REQUESTS.getInstrumentName());
         Instrument httpSessionObjects = instrumentRegistry.getInstrument(HTTP_SESSION_OBJECTS.getInstrumentName());
+        Instrument concurrentQuicksearches = instrumentRegistry.getInstrument(QUICKSEARCH_CONCURRENT_REQUESTS.getInstrumentName());
+
         dbcpNumActiveGauge.set(getNullSafeValue(dbcpActive));
         dbcpMaxActiveGauge.set(getNullSafeValue(dbcpMaxActive));
         dbcpNumIdleGauge.set(getNullSafeValue(dbcpIdle));
@@ -347,6 +362,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         restRequestsGauge.set(getNullSafeValue(restRequests));
         concurrentRequestsGauge.set(getNullSafeValue(concurrentRequests));
         httpSessionObjectsGauge.set(getNullSafeValue(httpSessionObjects));
+        concurrentQuicksearchesGauge.set(getNullSafeValue(concurrentQuicksearches));
 
         // jvm uptime
         jvmUptimeGauge.set(ManagementFactory.getRuntimeMXBean().getUptime());
@@ -384,6 +400,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(concurrentRequestsGauge.collect());
         result.addAll(httpSessionObjectsGauge.collect());
         result.addAll(jvmUptimeGauge.collect());
+        result.addAll(concurrentQuicksearchesGauge.collect());
         result.addAll(mailQueueGauge.collect());
 
         return result;
