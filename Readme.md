@@ -2,12 +2,12 @@
 
 This is JIRA plugin which provides endpoint to expose JIRA metrics to Prometheus.
 
-For more information the documentation [Prometheus Exporter For JIRA](https://github.com/AndreyVMarkelov/jira-prometheus-exporter/wiki/Prometheus-Exporter-For-JIRA).
+For more information the documentation [Prometheus Exporter For Jira](https://github.com/AndreyVMarkelov/jira-prometheus-exporter/wiki/Prometheus-Exporter-For-JIRA).
 
 On Atlassian Marketplace [Prometheus Exporter For Jira](https://marketplace.atlassian.com/plugins/ru.andreymarkelov.atlas.plugins.prom-jira-exporter/server/overview)
 
-## Grafana examples 
+## Grafana 
 
-* [Example grafana dashborad](./grafana/dashboard-example.json)
+* [Example Grafana Dashborad](https://grafana.com/dashboards/5249)
 
-![image](./grafana/img/grafana-jira-dashboard.png)
+![image](./grafana/img/jira-board.png)

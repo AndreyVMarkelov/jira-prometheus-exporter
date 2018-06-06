@@ -1,15 +1,25 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import javax.servlet.ServletException;
+
 import com.atlassian.application.api.Application;
 import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
+import com.atlassian.jira.application.ApplicationKeys;
 import com.atlassian.jira.cluster.ClusterManager;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.license.LicenseCountService;
 import com.atlassian.jira.user.util.UserManager;
 import com.atlassian.jira.web.session.currentusers.JiraUserSession;
 import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
+import com.atlassian.mail.queue.MailQueue;
 import com.atlassian.sal.api.license.SingleProductLicenseDetailsView;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
@@ -23,15 +33,12 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import static java.time.Instant.now;
+import static java.util.Collections.emptyList;
+import static java.util.Objects.nonNull;
+import static java.util.concurrent.TimeUnit.DAYS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import static com.atlassian.jira.application.ApplicationKeys.CORE;
 import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_ACTIVE;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_IDLE;
@@ -44,11 +51,13 @@ import static com.atlassian.jira.instrumentation.InstrumentationName.HTTP_SESSIO
 import static com.atlassian.jira.instrumentation.InstrumentationName.REST_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.WEB_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.QUICKSEARCH_CONCURRENT_REQUESTS;
+
 import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.nonNull;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean, InitializingBean {
@@ -63,6 +72,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final ScheduledMetricEvaluator scheduledMetricEvaluator;
     private final CollectorRegistry registry;
     private final InstrumentRegistry instrumentRegistry;
+    private final MailQueue mailQueue;
 
     public MetricCollectorImpl(
             IssueManager issueManager,
@@ -71,7 +81,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             LicenseCountService licenseCountService,
             ApplicationManager jiraApplicationManager,
             ScheduledMetricEvaluator scheduledMetricEvaluator,
-            InstrumentRegistry instrumentRegistry) {
+            InstrumentRegistry instrumentRegistry,
+            MailQueue mailQueue) {
         this.issueManager = issueManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
@@ -81,11 +92,22 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         this.scheduledMetricEvaluator = scheduledMetricEvaluator;
         this.registry = CollectorRegistry.defaultRegistry;
         this.instrumentRegistry = instrumentRegistry;
+        this.mailQueue = mailQueue;
     }
+
+    private final Gauge mailQueueGauge = Gauge.build()
+            .name("jira_mail_queue_gauge")
+            .help("Mail Queue Gauge")
+            .create();
 
     private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
             .name("jira_maintenance_expiry_days_gauge")
             .help("Maintenance Expiry Days Gauge")
+            .create();
+
+    private final Gauge licenseExpiryDaysGauge = Gauge.build()
+            .name("jira_license_expiry_days_gauge")
+            .help("License Expiry Days Gauge")
             .create();
 
     private final Gauge allUsersGauge = Gauge.build()
@@ -283,12 +305,33 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         activeUsersGauge.set(licenseCountService.totalBillableUsers());
 
         // license
-        SingleProductLicenseDetailsView licenseDetails = jiraApplicationManager.getApplication(CORE)
-                .flatMap(Application::getLicense)
-                .getOrNull();
+        SingleProductLicenseDetailsView licenseDetails = jiraApplicationManager.getPlatform().getLicense().getOrNull();
         if (licenseDetails != null) {
-            maintenanceExpiryDaysGauge.set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            // because nullable
+            if (licenseDetails.getMaintenanceExpiryDate() != null) {
+                maintenanceExpiryDaysGauge.set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            }
+            // because nullable
+            if (licenseDetails.getLicenseExpiryDate() != null) {
+                licenseExpiryDaysGauge.set(DAYS.convert(licenseDetails.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            }
             allowedUsersGauge.set(licenseDetails.getNumberOfUsers());
+        } else {
+            Application application = jiraApplicationManager.getApplication(ApplicationKeys.CORE).getOrNull();
+            if (application != null) {
+                SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
+                if (singleProductLicenseDetailsView != null) {
+                    // because nullable
+                    if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
+                        maintenanceExpiryDaysGauge.set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                    }
+                    // because nullable
+                    if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
+                        licenseExpiryDaysGauge.set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                    }
+                    allowedUsersGauge.set(singleProductLicenseDetailsView.getNumberOfUsers());
+                }
+            }
         }
 
         // attachment size
@@ -324,6 +367,9 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         // jvm uptime
         jvmUptimeGauge.set(ManagementFactory.getRuntimeMXBean().getUptime());
 
+        // mail
+        mailQueueGauge.set(mailQueue.size());
+
         // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
         result.addAll(issueUpdateCounter.collect());
@@ -341,6 +387,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(activeUsersGauge.collect());
         result.addAll(allowedUsersGauge.collect());
         result.addAll(maintenanceExpiryDaysGauge.collect());
+        result.addAll(licenseExpiryDaysGauge.collect());
         result.addAll(dbcpNumActiveGauge.collect());
         result.addAll(dbcpNumIdleGauge.collect());
         result.addAll(dbcpMaxActiveGauge.collect());
@@ -354,6 +401,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(httpSessionObjectsGauge.collect());
         result.addAll(jvmUptimeGauge.collect());
         result.addAll(concurrentQuicksearchesGauge.collect());
+        result.addAll(mailQueueGauge.collect());
 
         return result;
     }
