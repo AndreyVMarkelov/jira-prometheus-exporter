@@ -8,11 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.servlet.ServletException;
 
-import com.atlassian.application.api.Application;
 import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
-import com.atlassian.jira.application.ApplicationKeys;
 import com.atlassian.jira.cluster.ClusterManager;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.license.LicenseCountService;
@@ -98,11 +96,13 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
             .name("jira_maintenance_expiry_days_gauge")
             .help("Maintenance Expiry Days Gauge")
+            .labelNames("licenseType")
             .create();
 
     private final Gauge licenseExpiryDaysGauge = Gauge.build()
             .name("jira_license_expiry_days_gauge")
             .help("License Expiry Days Gauge")
+            .labelNames("licenseType")
             .create();
 
     private final Gauge allUsersGauge = Gauge.build()
@@ -118,6 +118,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final Gauge allowedUsersGauge = Gauge.build()
             .name("jira_allowed_users_gauge")
             .help("Allowed Users Gauge")
+            .labelNames("licenseType")
             .create();
 
     private final Gauge issuesGauge = Gauge.build()
@@ -304,29 +305,42 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         if (licenseDetails != null) {
             // because nullable
             if (licenseDetails.getMaintenanceExpiryDate() != null) {
-                maintenanceExpiryDaysGauge.set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                maintenanceExpiryDaysGauge
+                        .labels(licenseDetails.getProductDisplayName())
+                        .set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
             }
             // because nullable
             if (licenseDetails.getLicenseExpiryDate() != null) {
-                licenseExpiryDaysGauge.set(DAYS.convert(licenseDetails.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                licenseExpiryDaysGauge
+                        .labels(licenseDetails.getProductDisplayName())
+                        .set(DAYS.convert(licenseDetails.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
             }
-            allowedUsersGauge.set(licenseDetails.getNumberOfUsers());
+            allowedUsersGauge
+                    .labels(licenseDetails.getProductDisplayName())
+                    .set(licenseDetails.getNumberOfUsers());
         } else {
-            Application application = jiraApplicationManager.getApplication(ApplicationKeys.CORE).getOrNull();
-            if (application != null) {
-                SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
-                if (singleProductLicenseDetailsView != null) {
-                    // because nullable
-                    if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
-                        maintenanceExpiryDaysGauge.set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            jiraApplicationManager.getApplications().forEach(application -> {
+                if (application != null) {
+                    SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
+                    if (singleProductLicenseDetailsView != null) {
+                        // because nullable
+                        if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
+                            maintenanceExpiryDaysGauge
+                                    .labels(application.getName())
+                                    .set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                        }
+                        // because nullable
+                        if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
+                            licenseExpiryDaysGauge
+                                    .labels(application.getName())
+                                    .set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                        }
+                        allowedUsersGauge
+                                .labels(application.getName())
+                                .set(singleProductLicenseDetailsView.getNumberOfUsers());
                     }
-                    // because nullable
-                    if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
-                        licenseExpiryDaysGauge.set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-                    }
-                    allowedUsersGauge.set(singleProductLicenseDetailsView.getNumberOfUsers());
                 }
-            }
+            });
         }
 
         // attachment size

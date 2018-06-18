@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ru.andreymarkelov.atlas.plugins</groupId>
     <artifactId>prom-jira-exporter</artifactId>
-    <version>1.0.16</version>
+    <version>1.0.17</version>
     <packaging>atlassian-plugin</packaging>
 
     <name>Prometheus Exporter For Jira</name>

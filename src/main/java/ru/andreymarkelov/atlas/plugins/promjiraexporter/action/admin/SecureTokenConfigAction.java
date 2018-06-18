@@ -1,5 +1,7 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.action.admin;
 
+import java.util.Date;
+
 import com.atlassian.jira.permission.GlobalPermissionKey;
 import com.atlassian.jira.security.GlobalPermissionManager;
 import com.atlassian.jira.security.xsrf.RequiresXsrfCheck;
@@ -8,12 +10,7 @@ import com.atlassian.jira.web.action.JiraWebActionSupport;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.ScheduledMetricEvaluator;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManager;
 
-import java.util.Date;
-
 public class SecureTokenConfigAction extends JiraWebActionSupport {
-    private static final String ERROR_INVALID_DELAY = "ru.andreymarkelov.atlas.plugins.promjiraexporter.action.error.invalid.delay";
-    private static final String NOT_YET_EXECUTED = "ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.notyetexecuted";
-
     private final SecureTokenManager secureTokenManager;
     private final GlobalPermissionManager globalPermissionManager;
     private final ScheduledMetricEvaluator scheduledMetricEvaluator;
@@ -33,7 +30,7 @@ public class SecureTokenConfigAction extends JiraWebActionSupport {
     }
 
     @Override
-    public String doDefault() throws Exception {
+    public String doDefault() {
         if (!hasAdminPermission()) {
             return PERMISSION_VIOLATION_RESULT;
         }
@@ -45,7 +42,7 @@ public class SecureTokenConfigAction extends JiraWebActionSupport {
         if (temp > 0) {
             lastExecutionTimestamp = new Date(temp).toString();
         } else {
-            lastExecutionTimestamp = getJiraServiceContext().getI18nBean().getText(NOT_YET_EXECUTED);
+            lastExecutionTimestamp = getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.notyetexecuted");
         }
 
         return INPUT;
@@ -53,15 +50,14 @@ public class SecureTokenConfigAction extends JiraWebActionSupport {
 
     @Override
     protected void doValidation() {
-        if (delay <= 0) {
-            getJiraServiceContext().getErrorCollection().addError("delay",
-                    getJiraServiceContext().getI18nBean().getText(ERROR_INVALID_DELAY));
+        if (delay < 0) {
+            addError("delay", getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.action.error.invalid.delay"));
         }
     }
 
     @Override
     @RequiresXsrfCheck
-    protected String doExecute() throws Exception {
+    protected String doExecute() {
         if (hasAnyErrors()) {
             return ERROR;
         }

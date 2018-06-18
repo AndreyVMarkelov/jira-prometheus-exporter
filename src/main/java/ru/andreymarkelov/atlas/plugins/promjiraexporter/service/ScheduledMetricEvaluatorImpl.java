@@ -1,13 +1,5 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
-import com.atlassian.jira.config.util.AttachmentPathManager;
-import com.atlassian.sal.api.pluginsettings.PluginSettings;
-import com.atlassian.sal.api.pluginsettings.PluginSettingsFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
-
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +10,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import com.atlassian.jira.config.util.AttachmentPathManager;
+import com.atlassian.sal.api.pluginsettings.PluginSettings;
+import com.atlassian.sal.api.pluginsettings.PluginSettingsFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
 
 import static java.lang.Thread.MIN_PRIORITY;
 import static java.util.Optional.ofNullable;
@@ -96,6 +96,10 @@ public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, D
     }
 
     private void startScraping(int delay) {
+        if (delay <= 0) {
+            return;
+        }
+
         scraper = executorService.scheduleWithFixedDelay(() -> {
             File attachmentDirectory = new File(attachmentPathManager.getAttachmentPath());
             try {
