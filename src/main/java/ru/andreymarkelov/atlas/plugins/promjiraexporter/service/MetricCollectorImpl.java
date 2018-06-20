@@ -410,7 +410,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(concurrentQuicksearchesGauge.collect());
         result.addAll(httpSessionObjectsGauge.collect());
         result.addAll(jvmUptimeGauge.collect());
-        result.addAll(concurrentQuicksearchesGauge.collect());
         result.addAll(mailQueueGauge.collect());
 
         return result;
