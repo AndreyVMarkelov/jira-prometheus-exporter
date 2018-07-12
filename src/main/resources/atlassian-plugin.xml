@@ -38,6 +38,9 @@
     <component name="Security Token Data Manager" key="prom-for-jira-exporter-data-manager" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManagerImpl">
         <interface>ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManager</interface>
     </component>
+    <component name="Scraping Data Manager" key="prom-for-jira-exporter-scraping-data-manager" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.service.ScrapingSettingsManagerImpl">
+        <interface>ru.andreymarkelov.atlas.plugins.promjiraexporter.service.ScrapingSettingsManager</interface>
+    </component>
     <component name="Metrics Event Listener" key="prom-jira-exporter-listener" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.listener.MetricListener">
         <description>This service listens JIRA events.</description>
     </component>

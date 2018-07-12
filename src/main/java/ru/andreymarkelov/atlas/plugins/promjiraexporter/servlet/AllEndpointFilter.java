@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 import com.atlassian.sal.api.ApplicationProperties;
 import com.atlassian.sal.api.UrlMode;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector;
+import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
 import static org.apache.commons.lang3.StringUtils.removeStart;
 
@@ -35,7 +36,15 @@ public class AllEndpointFilter implements Filter {
         }
 
         String path = removeStart(((HttpServletRequest) servletRequest).getRequestURI(), applicationProperties.getBaseUrl(UrlMode.RELATIVE));
-        metricCollector.requestDuration(getComponents(path, 1), () -> filterChain.doFilter(servletRequest, servletResponse));
+        metricCollector.requestDuration(
+                getComponents(path, 1),
+                new ExceptionRunnable() {
+                    @Override
+                    public void run() throws IOException, ServletException {
+                        filterChain.doFilter(servletRequest, servletResponse);
+                    }
+                }
+        );
     }
 
     @Override

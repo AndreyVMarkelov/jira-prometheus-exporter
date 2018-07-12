@@ -1,8 +1,11 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
 import java.io.File;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
@@ -10,26 +13,23 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.Nonnull;
 
 import com.atlassian.jira.config.util.AttachmentPathManager;
-import com.atlassian.sal.api.pluginsettings.PluginSettings;
-import com.atlassian.sal.api.pluginsettings.PluginSettingsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 
 import static java.lang.Thread.MIN_PRIORITY;
-import static java.util.Optional.ofNullable;
 import static java.util.concurrent.Executors.defaultThreadFactory;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, DisposableBean, InitializingBean {
     private static final Logger log = LoggerFactory.getLogger(ScheduledMetricEvaluator.class);
 
-    private final PluginSettings pluginSettings;
-
     private final AttachmentPathManager attachmentPathManager;
+    private final ScrapingSettingsManager scrapingSettingsManager;
 
     private final AtomicLong totalAttachmentSize;
     private final AtomicLong lastExecutionTimestamp;
@@ -44,19 +44,21 @@ public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, D
     private final Lock lock;
 
     public ScheduledMetricEvaluatorImpl(
-            PluginSettingsFactory pluginSettingsFactory,
-            AttachmentPathManager attachmentPathManager) {
-        this.pluginSettings = pluginSettingsFactory.createSettingsForKey("PLUGIN_PROMETHEUS_FOR_JIRA");
-
+            AttachmentPathManager attachmentPathManager,
+            ScrapingSettingsManager scrapingSettingsManager) {
         this.attachmentPathManager = attachmentPathManager;
+        this.scrapingSettingsManager = scrapingSettingsManager;
         this.totalAttachmentSize = new AtomicLong(0);
         this.lastExecutionTimestamp = new AtomicLong(-1);
 
         this.threadFactory = defaultThreadFactory();
-        this.executorService = newSingleThreadScheduledExecutor(r -> {
-            Thread thread = threadFactory.newThread(r);
-            thread.setPriority(MIN_PRIORITY);
-            return thread;
+        this.executorService = newSingleThreadScheduledExecutor(new ThreadFactory() {
+            @Override
+            public Thread newThread(@Nonnull Runnable r) {
+                Thread thread = threadFactory.newThread(r);
+                thread.setPriority(MIN_PRIORITY);
+                return thread;
+            }
         });
         this.lock = new ReentrantLock();
     }
@@ -100,24 +102,34 @@ public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, D
             return;
         }
 
-        scraper = executorService.scheduleWithFixedDelay(() -> {
-            File attachmentDirectory = new File(attachmentPathManager.getAttachmentPath());
-            try {
-                long size = Files.walk(attachmentDirectory.toPath())
-                        .map(Path::toFile)
-                        .filter(File::isFile)
-                        .mapToLong(File::length)
-                        .sum();
-                log.debug("Total attachment size:{}", size);
-                totalAttachmentSize.set(size);
-                lastExecutionTimestamp.set(System.currentTimeMillis());
-            } catch (Exception ex) {
-                log.error("Failed to resolve attachments size.", ex);
-
-                // Rethrow exception so that the executor also gets this error so that it can react on it.
-                throw new RuntimeException(ex);
+        scraper = executorService.scheduleWithFixedDelay(new Runnable() {
+            @Override
+            public void run() {
+                calculateAttachmentSize();
             }
         }, 0, delay, TimeUnit.MINUTES);
+    }
+
+    private void calculateAttachmentSize() {
+        File attachmentDirectory = new File(attachmentPathManager.getAttachmentPath());
+        try {
+            final AtomicLong size = new AtomicLong(0);
+            Path folder = attachmentDirectory.toPath();
+            Files.walkFileTree(folder, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    size.addAndGet(attrs.size());
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+            log.debug("Total attachment size:{}", size);
+            totalAttachmentSize.set(size.longValue());
+            lastExecutionTimestamp.set(System.currentTimeMillis());
+        } catch (Exception ex) {
+            log.error("Failed to resolve attachments size.", ex);
+            // Rethrow exception so that the executor also gets this error so that it can react on it.
+            throw new RuntimeException(ex);
+        }
     }
 
     private void stopScraping() {
@@ -139,14 +151,11 @@ public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, D
 
     @Override
     public int getDelay() {
-        return ofNullable(pluginSettings.get("delay"))
-                .map(String.class::cast)
-                .map(Integer::parseInt)
-                .orElse(1);
+        return scrapingSettingsManager.getDelay();
     }
 
     @Override
     public void setDelay(int delay) {
-        pluginSettings.put("delay", String.valueOf(delay));
+        scrapingSettingsManager.setDelay(delay);
     }
 }

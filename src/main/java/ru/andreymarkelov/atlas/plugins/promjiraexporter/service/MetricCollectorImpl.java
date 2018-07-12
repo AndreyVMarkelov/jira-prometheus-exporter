@@ -2,12 +2,11 @@ package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import javax.servlet.ServletException;
 
+import com.atlassian.application.api.Application;
 import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
@@ -31,9 +30,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
-import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
-import static java.util.Objects.nonNull;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -291,7 +288,14 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         // resolve sessions count
         List<JiraUserSession> snapshot = jiraUserSessionTracker.getSnapshot();
         totalSessionsGauge.set(snapshot.size());
-        authorizedSessionsGauge.set(snapshot.stream().filter(e -> nonNull(e.getUserName())).count());
+
+        int countUserSessions = 0;
+        for (JiraUserSession jiraUserSession : snapshot) {
+            if (jiraUserSession.getUserName() != null) {
+                countUserSessions++;
+            }
+        }
+        authorizedSessionsGauge.set(countUserSessions);
 
         // resolve cluster metrics
         totalClusterNodeGauge.set(clusterManager.getAllNodes().size());
@@ -319,7 +323,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
                     .labels(licenseDetails.getProductDisplayName())
                     .set(licenseDetails.getNumberOfUsers());
         } else {
-            jiraApplicationManager.getApplications().forEach(application -> {
+            for (Application application : jiraApplicationManager.getApplications()) {
                 if (application != null) {
                     SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
                     if (singleProductLicenseDetailsView != null) {
@@ -340,7 +344,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
                                 .set(singleProductLicenseDetailsView.getNumberOfUsers());
                     }
                 }
-            });
+            }
         }
 
         // attachment size
@@ -440,14 +444,14 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
     @Override
     public List<MetricFamilySamples> collect() {
-        Instant start = now();
+        long start = System.currentTimeMillis();
         try {
             return collectInternal();
         } catch (Throwable throwable) {
             log.error("Error collect prometheus metrics", throwable);
             return emptyList();
         } finally {
-            log.debug("Collect execution time is: {}ms", Duration.between(start, now()).toMillis());
+            log.debug("Collect execution time is: {}ms", System.currentTimeMillis() - start);
         }
     }
 }
