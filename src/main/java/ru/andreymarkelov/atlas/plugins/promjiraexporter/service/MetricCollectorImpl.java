@@ -90,6 +90,11 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("Mail Queue Gauge")
             .create();
 
+    private final Gauge mailQueueErrorGauge = Gauge.build()
+            .name("jira_mail_queue_error_gauge")
+            .help("Mail Queue Error Gauge")
+            .create();
+
     private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
             .name("jira_maintenance_expiry_days_gauge")
             .help("Maintenance Expiry Days Gauge")
@@ -382,6 +387,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
         // mail
         mailQueueGauge.set(mailQueue.size());
+        mailQueueErrorGauge.set(mailQueue.errorSize());
 
         // collect all metrics
         List<MetricFamilySamples> result = new ArrayList<>();
@@ -415,6 +421,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(httpSessionObjectsGauge.collect());
         result.addAll(jvmUptimeGauge.collect());
         result.addAll(mailQueueGauge.collect());
+        result.addAll(mailQueueErrorGauge.collect());
 
         return result;
     }
