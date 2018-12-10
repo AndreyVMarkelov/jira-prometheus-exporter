@@ -12,6 +12,9 @@ import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.security.JiraAuthenticationContext;
 import com.atlassian.jira.user.ApplicationUser;
+import com.atlassian.plugin.event.events.PluginDisabledEvent;
+import com.atlassian.plugin.event.events.PluginEnabledEvent;
+import com.atlassian.plugin.event.events.PluginUninstalledEvent;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector;
@@ -83,6 +86,21 @@ public class MetricListener implements InitializingBean, DisposableBean {
     public void onLogoutEvent(LogoutEvent logoutEvent) {
         ApplicationUser applicationUser = logoutEvent.getUser();
         metricCollector.userLogoutCounter((applicationUser != null) ? applicationUser.getUsername() : "");
+    }
+
+    @EventListener
+    public void onPluginEnabledEvent(PluginEnabledEvent pluginEnabledEvent) {
+        metricCollector.pluginEnabledCounter(pluginEnabledEvent.getPlugin().getKey());
+    }
+
+    @EventListener
+    public void onPluginDisabledEvent(PluginDisabledEvent pluginDisabledEvent) {
+        metricCollector.pluginDisabledCounter(pluginDisabledEvent.getPlugin().getKey());
+    }
+
+    @EventListener
+    public void onPluginUninstalledEvent(PluginUninstalledEvent pluginUninstalledEvent) {
+        metricCollector.pluginUninstalledCounter(pluginUninstalledEvent.getPlugin().getKey());
     }
 
     private String getCurrentUser() {

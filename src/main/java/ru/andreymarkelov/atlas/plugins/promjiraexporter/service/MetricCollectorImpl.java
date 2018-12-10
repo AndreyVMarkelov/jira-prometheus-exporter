@@ -1,11 +1,5 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
-import java.util.List;
-import javax.servlet.ServletException;
-
 import com.atlassian.application.api.Application;
 import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
@@ -30,9 +24,11 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
-import static java.util.Collections.emptyList;
-import static java.util.concurrent.TimeUnit.DAYS;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_ACTIVE;
@@ -45,6 +41,9 @@ import static com.atlassian.jira.instrumentation.InstrumentationName.DB_WRITES;
 import static com.atlassian.jira.instrumentation.InstrumentationName.HTTP_SESSION_OBJECTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.REST_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.WEB_REQUESTS;
+import static java.util.Collections.emptyList;
+import static java.util.concurrent.TimeUnit.DAYS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean, InitializingBean {
@@ -249,6 +248,26 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("JVM Uptime Gauge")
             .create();
 
+    //--> plugins
+
+    private final Counter pluginEnabledCounter = Counter.build()
+            .name("jira_plugin_enabled_count")
+            .help("Plugin Enabled Count")
+            .labelNames("pluginKey")
+            .create();
+
+    private final Counter pluginDisabledCounter = Counter.build()
+            .name("jira_plugin_disabled_count")
+            .help("Plugin Disabled Count")
+            .labelNames("pluginKey")
+            .create();
+
+    private final Counter pluginUninstalledCounter = Counter.build()
+            .name("jira_plugin_uninstalled_count")
+            .help("Plugin Uninstalled Count")
+            .labelNames("pluginKey")
+            .create();
+
     @Override
     public void requestDuration(String path, ExceptionRunnable runnable) throws IOException, ServletException {
         Histogram.Timer level1Timer = isNotBlank(path) ? requestDurationOnPath.labels(path).startTimer() : null;
@@ -284,6 +303,21 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     @Override
     public void dashboardViewCounter(Long dashboardId, String username) {
         dashboardViewCounter.labels(Long.toString(dashboardId), username).inc();
+    }
+
+    @Override
+    public void pluginEnabledCounter(String pluginKey) {
+        pluginEnabledCounter.labels(pluginKey).inc();
+    }
+
+    @Override
+    public void pluginDisabledCounter(String pluginKey) {
+        pluginDisabledCounter.labels(pluginKey).inc();
+    }
+
+    @Override
+    public void pluginUninstalledCounter(String pluginKey) {
+        pluginUninstalledCounter.labels(pluginKey).inc();
     }
 
     private List<MetricFamilySamples> collectInternal() {
@@ -396,6 +430,9 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(userLoginCounter.collect());
         result.addAll(userLogoutCounter.collect());
         result.addAll(dashboardViewCounter.collect());
+        result.addAll(pluginEnabledCounter.collect());
+        result.addAll(pluginDisabledCounter.collect());
+        result.addAll(pluginUninstalledCounter.collect());
         result.addAll(requestDurationOnPath.collect());
         result.addAll(issuesGauge.collect());
         result.addAll(totalSessionsGauge.collect());
