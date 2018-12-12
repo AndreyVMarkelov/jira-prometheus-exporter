@@ -8,6 +8,6 @@ On Atlassian Marketplace [Prometheus Exporter For Jira](https://marketplace.atla
 
 ## Grafana 
 
-* [Example Grafana Dashborad](https://grafana.com/dashboards/5249)
+* [Example Grafana Dashboard](https://grafana.com/dashboards/5249)
 
 ![image](./grafana/img/jira-board.png)
