@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ru.andreymarkelov.atlas.plugins</groupId>
     <artifactId>prom-jira-exporter</artifactId>
-    <version>1.0.21</version>
+    <version>1.0.25</version>
     <packaging>atlassian-plugin</packaging>
 
     <name>Prometheus Exporter For Jira</name>
@@ -62,6 +62,14 @@
             <version>1.1.1</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- Remove later -->
+        <dependency>
+            <groupId>com.atlassian.fugue</groupId>
+            <artifactId>fugue</artifactId>
+            <version>2.6.1</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -82,15 +90,15 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.6.1</version>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
         </plugins>
     </build>
 
     <properties>
-        <jira.version>7.0.0</jira.version>
+        <jira.version>8.1.0</jira.version>
         <amps.version>6.3.15</amps.version>
         <sal-api.version>3.0.0</sal-api.version>
         <lang3.version>3.0</lang3.version>

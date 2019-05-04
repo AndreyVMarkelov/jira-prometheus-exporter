@@ -344,47 +344,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         activeUsersGauge.set(licenseCountService.totalBillableUsers());
 
         // license
-        SingleProductLicenseDetailsView licenseDetails = jiraApplicationManager.getPlatform().getLicense().getOrNull();
-        if (licenseDetails != null) {
-            // because nullable
-            if (licenseDetails.getMaintenanceExpiryDate() != null) {
-                maintenanceExpiryDaysGauge
-                        .labels(licenseDetails.getProductDisplayName())
-                        .set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-            }
-            // because nullable
-            if (licenseDetails.getLicenseExpiryDate() != null) {
-                licenseExpiryDaysGauge
-                        .labels(licenseDetails.getProductDisplayName())
-                        .set(DAYS.convert(licenseDetails.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-            }
-            allowedUsersGauge
-                    .labels(licenseDetails.getProductDisplayName())
-                    .set(licenseDetails.getNumberOfUsers());
-        } else {
-            for (Application application : jiraApplicationManager.getApplications()) {
-                if (application != null) {
-                    SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
-                    if (singleProductLicenseDetailsView != null) {
-                        // because nullable
-                        if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
-                            maintenanceExpiryDaysGauge
-                                    .labels(application.getName())
-                                    .set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-                        }
-                        // because nullable
-                        if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
-                            licenseExpiryDaysGauge
-                                    .labels(application.getName())
-                                    .set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-                        }
-                        allowedUsersGauge
-                                .labels(application.getName())
-                                .set(singleProductLicenseDetailsView.getNumberOfUsers());
-                    }
-                }
-            }
-        }
+        licenseMetrics();
 
         // attachment size
         totalAttachmentSizeGauge.set(scheduledMetricEvaluator.getTotalAttachmentSize());
@@ -496,6 +456,50 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             return emptyList();
         } finally {
             log.debug("Collect execution time is: {}ms", System.currentTimeMillis() - start);
+        }
+    }
+
+    private void licenseMetrics() {
+        SingleProductLicenseDetailsView licenseDetails = jiraApplicationManager.getPlatform().getLicense().getOrNull();
+        if (licenseDetails != null) {
+            // because nullable
+            if (licenseDetails.getMaintenanceExpiryDate() != null) {
+                maintenanceExpiryDaysGauge
+                        .labels(licenseDetails.getProductDisplayName())
+                        .set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            }
+            // because nullable
+            if (licenseDetails.getLicenseExpiryDate() != null) {
+                licenseExpiryDaysGauge
+                        .labels(licenseDetails.getProductDisplayName())
+                        .set(DAYS.convert(licenseDetails.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+            }
+            allowedUsersGauge
+                    .labels(licenseDetails.getProductDisplayName())
+                    .set(licenseDetails.getNumberOfUsers());
+        } else {
+            for (Application application : jiraApplicationManager.getApplications()) {
+                if (application != null) {
+                    SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
+                    if (singleProductLicenseDetailsView != null) {
+                        // because nullable
+                        if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
+                            maintenanceExpiryDaysGauge
+                                    .labels(application.getName())
+                                    .set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                        }
+                        // because nullable
+                        if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
+                            licenseExpiryDaysGauge
+                                    .labels(application.getName())
+                                    .set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                        }
+                        allowedUsersGauge
+                                .labels(application.getName())
+                                .set(singleProductLicenseDetailsView.getNumberOfUsers());
+                    }
+                }
+            }
         }
     }
 }
