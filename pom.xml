@@ -15,9 +15,8 @@
     </organization>
 
     <scm>
-        <connection>scm:git:https://github.com/AndreyVMarkelov/jira-prometheus-exporter.git</connection>
-        <developerConnection>scm:git:git@github.com:AndreyVMarkelov/jira-prometheus-exporter.git</developerConnection>
         <url>https://github.com/AndreyVMarkelov/jira-prometheus-exporter</url>
+        <connection>scm:git:https://github.com/AndreyVMarkelov/jira-prometheus-exporter.git</connection>
         <tag>HEAD</tag>
     </scm>
 
