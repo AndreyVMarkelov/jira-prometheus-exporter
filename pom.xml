@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ru.andreymarkelov.atlas.plugins</groupId>
     <artifactId>prom-jira-exporter</artifactId>
-    <version>1.0.26</version>
+    <version>1.0.27-SNAPSHOT</version>
     <packaging>atlassian-plugin</packaging>
 
     <name>Prometheus Exporter For Jira</name>
@@ -13,6 +13,13 @@
         <name>Andrey Markelov</name>
         <url>http://ru.linkedin.com/in/andreymarkelov/</url>
     </organization>
+
+    <scm>
+        <connection>scm:git:https://github.com/AndreyVMarkelov/jira-prometheus-exporter.git</connection>
+        <developerConnection>scm:git:git@github.com:AndreyVMarkelov/jira-prometheus-exporter.git</developerConnection>
+        <url>https://github.com/AndreyVMarkelov/jira-prometheus-exporter</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <dependencies>
         <dependency>
@@ -100,6 +107,14 @@
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>2.5.3</version>
+                <configuration>
+                    <tagNameFormat>v@{project.version}</tagNameFormat>
                 </configuration>
             </plugin>
         </plugins>
