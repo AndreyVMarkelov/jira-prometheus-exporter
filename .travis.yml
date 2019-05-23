@@ -29,7 +29,6 @@ before_deploy:
     fi
   - export deploy_version=$project_version$branch_version
   - echo "Deploy version - $deploy_version"
-  - mv $TRAVIS_BUILD_DIR/target/prom-jira-exporter-$project_version.jar $TRAVIS_BUILD_DIR/target/prom-jira-exporter-$deploy_version.jar
 
 deploy:
   provider: releases
