@@ -1,14 +1,38 @@
 sudo: false
 language: java
+
 jdk:
   - oraclejdk8
 
 before_install:
   - ./setup-atlassian-sdk.sh `pwd`
   - export PATH=opt/atlassian-plugin-sdk/bin:opt/atlassian-plugin-sdk/apache-maven-*/bin:$PATH
+
 install:
   - atlas-mvn install
+
 script:
   - atlas-package
+
 notifications:
   email: false
+
+before_deploy:
+  - mvn help:evaluate -N -Dexpression=project.version | grep -v '\['
+  - export project_version=$(mvn help:evaluate -N -Dexpression=project.version | grep -v '\[') TRAVIS_BRANCH
+  - if [ $TRAVIS_BRANCH != "master" ]; then
+    export branch_version=-$TRAVIS_BRANCH
+    fi
+  - export deploy_version=$project_version$branch_version
+  - mv "jira-prometheus-exporter/target/prom-jira-exporter-$project_version.jar" "jira-prometheus-exporter/target/prom-jira-exporter-$deploy_version.jar"
+
+deploy:
+  provider: releases
+  api_key: $GITHUB_OAUTH_TOKEN
+  file:
+    - "jira-prometheus-exporter/target/prom-jira-exporter-$deploy_version.jar"
+  skip_cleanup: true
+  on:
+    tags: true
+    repo: AndreyVMarkelov/jira-prometheus-exporter
+  name: $deploy_version

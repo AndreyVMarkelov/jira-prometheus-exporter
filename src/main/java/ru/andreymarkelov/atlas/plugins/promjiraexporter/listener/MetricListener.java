@@ -3,6 +3,7 @@ package ru.andreymarkelov.atlas.plugins.promjiraexporter.listener;
 import com.atlassian.event.api.EventListener;
 import com.atlassian.event.api.EventPublisher;
 import com.atlassian.jira.event.DashboardViewEvent;
+import com.atlassian.jira.event.cluster.HeartbeatEvent;
 import com.atlassian.jira.event.issue.IssueEvent;
 import com.atlassian.jira.event.issue.IssueViewEvent;
 import com.atlassian.jira.event.type.EventTypeManager;
@@ -102,6 +103,24 @@ public class MetricListener implements InitializingBean, DisposableBean {
     public void onPluginUninstalledEvent(PluginUninstalledEvent pluginUninstalledEvent) {
         metricCollector.pluginUninstalledCounter(pluginUninstalledEvent.getPlugin().getKey());
     }
+
+    //--> Cluster events
+
+    // since 7.3.1
+    public void onHeartbeatEvent(HeartbeatEvent heartbeatEvent) {
+        metricCollector.clusterHeartbeatCounter();
+    }
+
+    // TODO since 7.7.1
+//    public void onCacheReplicationResumedEvent(CacheReplicationResumedEvent cacheReplicationResumedEvent) {
+//        metricCollector.clusterCacheReplicationResumedCounter(cacheReplicationResumedEvent.getNodeId());
+//    }
+//
+//    public void onCacheReplicationStoppedEvent(CacheReplicationStoppedEvent cacheReplicationStoppedEvent) {
+//        metricCollector.clusterCacheReplicationStoppedCounter(cacheReplicationStoppedEvent.getNodeId());
+//    }
+
+    //<-- Cluster metrics
 
     private String getCurrentUser() {
         return jiraAuthenticationContext.isLoggedInUser() ? jiraAuthenticationContext.getLoggedInUser().getName() : "";

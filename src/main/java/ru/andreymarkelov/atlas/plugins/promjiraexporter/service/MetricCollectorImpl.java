@@ -94,18 +94,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("Mail Queue Error Gauge")
             .create();
 
-    private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
-            .name("jira_maintenance_expiry_days_gauge")
-            .help("Maintenance Expiry Days Gauge")
-            .labelNames("licenseType")
-            .create();
-
-    private final Gauge licenseExpiryDaysGauge = Gauge.build()
-            .name("jira_license_expiry_days_gauge")
-            .help("License Expiry Days Gauge")
-            .labelNames("licenseType")
-            .create();
-
     private final Gauge allUsersGauge = Gauge.build()
             .name("jira_all_users_gauge")
             .help("All Users Gauge")
@@ -114,12 +102,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final Gauge activeUsersGauge = Gauge.build()
             .name("jira_active_users_gauge")
             .help("Active Users Gauge")
-            .create();
-
-    private final Gauge allowedUsersGauge = Gauge.build()
-            .name("jira_allowed_users_gauge")
-            .help("Allowed Users Gauge")
-            .labelNames("licenseType")
             .create();
 
     private final Gauge issuesGauge = Gauge.build()
@@ -140,11 +122,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final Gauge totalAttachmentSizeGauge = Gauge.build()
             .name("jira_total_attachment_size_gauge")
             .help("Total Attachments Size Gauge")
-            .create();
-
-    private final Gauge totalClusterNodeGauge = Gauge.build()
-            .name("jira_total_cluster_nodes_gauge")
-            .help("Total Cluster Nodes Gauge")
             .create();
 
     private final Histogram requestDurationOnPath = Histogram.build()
@@ -320,6 +297,114 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         pluginUninstalledCounter.labels(pluginKey).inc();
     }
 
+    //------------------------------------------------------------------------------------------------------------------
+
+    //--> Cluster metrics
+
+    private final Gauge clusterTotalNodesGauge = Gauge.build()
+            .name("jira_total_cluster_nodes_gauge")
+            .help("Total Cluster Nodes Gauge")
+            .create();
+
+    private final Gauge clusterActiveNodesGauge = Gauge.build()
+            .name("jira_active_cluster_nodes_gauge")
+            .help("Active Cluster Nodes Gauge")
+            .create();
+
+    private final Gauge clusterHeartbeatCounter = Gauge.build()
+            .name("jira_cluster_heartbeat_counter")
+            .help("Cluster Heartbeat Counter")
+            .create();
+
+    private final Gauge clusterCacheReplicationResumedCounter = Gauge.build()
+            .name("jira_cluster_cache_replication_resumed_counter")
+            .help("Cluster Cache Replication Resumed Counter")
+            .labelNames("nodeId")
+            .create();
+
+    private final Gauge clusterCacheReplicationStoppedCounter = Gauge.build()
+            .name("jira_cluster_cache_replication_stopped_counter")
+            .help("Cluster Cache Replication Stopped Counter")
+            .labelNames("nodeId")
+            .create();
+
+    private void clusterMetrics() {
+        clusterTotalNodesGauge.set(clusterManager.getAllNodes().size());
+        clusterActiveNodesGauge.set(clusterManager.findLiveNodes().size());
+    }
+
+    @Override
+    public void clusterHeartbeatCounter() {
+        clusterHeartbeatCounter.inc();
+    }
+
+    @Override
+    public void clusterCacheReplicationResumedCounter(String nodeId) {
+        clusterCacheReplicationResumedCounter.labels(nodeId).inc();
+    }
+
+    @Override
+    public void clusterCacheReplicationStoppedCounter(String nodeId) {
+        clusterCacheReplicationStoppedCounter.labels(nodeId).inc();
+    }
+
+    //<-- Cluster metrics
+
+    //------------------------------------------------------------------------------------------------------------------
+
+    //--> License metrics
+
+    private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
+            .name("jira_maintenance_expiry_days_gauge")
+            .help("Maintenance Expiry Days Gauge")
+            .labelNames("licenseType")
+            .create();
+
+    private final Gauge licenseExpiryDaysGauge = Gauge.build()
+            .name("jira_license_expiry_days_gauge")
+            .help("License Expiry Days Gauge")
+            .labelNames("licenseType")
+            .create();
+
+    private final Gauge allowedUsersGauge = Gauge.build()
+            .name("jira_allowed_users_gauge")
+            .help("Allowed Users Gauge")
+            .labelNames("licenseType")
+            .create();
+
+    private void licenseMetrics() {
+        try {
+            for (Application application : jiraApplicationManager.getApplications()) {
+                if (application != null) {
+                    SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
+                    if (singleProductLicenseDetailsView != null) {
+                        // because nullable
+                        if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
+                            maintenanceExpiryDaysGauge
+                                    .labels(application.getName())
+                                    .set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                        }
+                        // because nullable
+                        if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
+                            licenseExpiryDaysGauge
+                                    .labels(application.getName())
+                                    .set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+                        }
+                        allowedUsersGauge
+                                .labels(application.getName())
+                                .set(singleProductLicenseDetailsView.getNumberOfUsers());
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Error to collect license metrics", ex);
+        }
+    }
+
+    //<-- License metrics
+
+    //------------------------------------------------------------------------------------------------------------------
+
     private List<MetricFamilySamples> collectInternal() {
         // resolve count issues
         issuesGauge.set(issueManager.getIssueCount());
@@ -336,15 +421,12 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         }
         authorizedSessionsGauge.set(countUserSessions);
 
-        // resolve cluster metrics
-        totalClusterNodeGauge.set(clusterManager.getAllNodes().size());
+        clusterMetrics();
+        licenseMetrics();
 
         // users
         allUsersGauge.set(userManager.getTotalUserCount());
         activeUsersGauge.set(licenseCountService.totalBillableUsers());
-
-        // license
-        licenseMetrics();
 
         // attachment size
         totalAttachmentSizeGauge.set(scheduledMetricEvaluator.getTotalAttachmentSize());
@@ -398,12 +480,21 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(totalSessionsGauge.collect());
         result.addAll(authorizedSessionsGauge.collect());
         result.addAll(totalAttachmentSizeGauge.collect());
-        result.addAll(totalClusterNodeGauge.collect());
-        result.addAll(allUsersGauge.collect());
-        result.addAll(activeUsersGauge.collect());
-        result.addAll(allowedUsersGauge.collect());
+
+        // cluster
+        result.addAll(clusterTotalNodesGauge.collect());
+        result.addAll(clusterActiveNodesGauge.collect());
+        result.addAll(clusterHeartbeatCounter.collect());
+        result.addAll(clusterCacheReplicationResumedCounter.collect());
+        result.addAll(clusterCacheReplicationStoppedCounter.collect());
+
+        // license
         result.addAll(maintenanceExpiryDaysGauge.collect());
         result.addAll(licenseExpiryDaysGauge.collect());
+        result.addAll(allowedUsersGauge.collect());
+
+        result.addAll(allUsersGauge.collect());
+        result.addAll(activeUsersGauge.collect());
         result.addAll(dbcpNumActiveGauge.collect());
         result.addAll(dbcpNumIdleGauge.collect());
         result.addAll(dbcpMaxActiveGauge.collect());
@@ -456,50 +547,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             return emptyList();
         } finally {
             log.debug("Collect execution time is: {}ms", System.currentTimeMillis() - start);
-        }
-    }
-
-    private void licenseMetrics() {
-        SingleProductLicenseDetailsView licenseDetails = jiraApplicationManager.getPlatform().getLicense().getOrNull();
-        if (licenseDetails != null) {
-            // because nullable
-            if (licenseDetails.getMaintenanceExpiryDate() != null) {
-                maintenanceExpiryDaysGauge
-                        .labels(licenseDetails.getProductDisplayName())
-                        .set(DAYS.convert(licenseDetails.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-            }
-            // because nullable
-            if (licenseDetails.getLicenseExpiryDate() != null) {
-                licenseExpiryDaysGauge
-                        .labels(licenseDetails.getProductDisplayName())
-                        .set(DAYS.convert(licenseDetails.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-            }
-            allowedUsersGauge
-                    .labels(licenseDetails.getProductDisplayName())
-                    .set(licenseDetails.getNumberOfUsers());
-        } else {
-            for (Application application : jiraApplicationManager.getApplications()) {
-                if (application != null) {
-                    SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
-                    if (singleProductLicenseDetailsView != null) {
-                        // because nullable
-                        if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
-                            maintenanceExpiryDaysGauge
-                                    .labels(application.getName())
-                                    .set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-                        }
-                        // because nullable
-                        if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
-                            licenseExpiryDaysGauge
-                                    .labels(application.getName())
-                                    .set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-                        }
-                        allowedUsersGauge
-                                .labels(application.getName())
-                                .set(singleProductLicenseDetailsView.getNumberOfUsers());
-                    }
-                }
-            }
         }
     }
 }

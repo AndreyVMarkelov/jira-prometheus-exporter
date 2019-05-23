@@ -17,4 +17,12 @@ public interface MetricCollector {
     void pluginEnabledCounter(String pluginKey);
     void pluginDisabledCounter(String pluginKey);
     void pluginUninstalledCounter(String pluginKey);
+
+    //--> Cluster metrics
+
+    void clusterHeartbeatCounter();
+    void clusterCacheReplicationResumedCounter(String nodeId);
+    void clusterCacheReplicationStoppedCounter(String nodeId);
+
+    //<-- Cluster metrics
 }
