@@ -29,10 +29,12 @@ before_deploy:
     fi
   - export deploy_version=$project_version$branch_version
   - echo "Deploy version - $deploy_version"
+  - mv "$TRAVIS_BUILD_DIR/target/prom-jira-exporter-$project_version.jar" "$TRAVIS_BUILD_DIR/target/prom-jira-exporter-$deploy_version.jar"
 
 deploy:
   provider: releases
-  api_key: $GITHUB_OAUTH_TOKEN
+  api_key:
+    secure: "HnXwYAPvvlh+jx1SSOn730r1i5VYGt8bjFSxv1GEbLLU+gNfgWX8UWulmjjLWakvYR6SOn3g4OcGQbTXTtqWx9Bkd1cSbV5zRshZPE//uJ4dVxoL6DTX8sNofQyDItCYJAmpqzN/meHR4YgQ9vS5/sDltUATQfRARJ2vDDZ5Mqzi4Aa9A8DXA01FHeFHEPl6N8Cha31WL2qd8Wtx9LGLbSqdV8Q16rhDZl7JdZSRCDmXkduQG4mxvtneXdneF/pjH4yBKvBHO/UrmyczGUwwfPayxvHwej71kMX50dMecDS4k9oVH1b0ePLtnJ51IhW0UOqaWGhKETTK6axjs5bqIxF19Vnf32JAn77ID/CSR8Ie3un/c1Lq86uzThaWRm/VhCxL4n/5Ja9r7MhUeds4g7BwVtw1wSE/JyGvshHkjpHFplEN4yR+NWXJJJtYbULsiQp4gYnT0YcxeIXuEugLr9Ob5HJfhPAKHEQOEvocAS6rzrl8viRYBioidddIAVds9d8HMk3Nu6k24PLQgVU/HNo2GLD14uvoDzWCuOrGil+L+JEnTxKhKOdF52z2RC11Tob3CzXf9jxz0uJwLiGzxkh50cRTr+hI+HECxuw6WPvazW12+SUin/PYtcCEOrN9KLaNj/63P29r7petAak1sUvnSlPNqsVCCL7RopGSW/Q="
   file: "target/prom-jira-exporter-$deploy_version.jar"
   skip_cleanup: true
   on:
