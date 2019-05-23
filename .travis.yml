@@ -28,12 +28,12 @@ before_deploy:
       export branch_version=-$TRAVIS_BRANCH;
     fi
   - export deploy_version=$project_version$branch_version
-  - mv "jira-prometheus-exporter/target/prom-jira-exporter-$project_version.jar" "jira-prometheus-exporter/target/prom-jira-exporter-$deploy_version.jar"
+  - mv "target/prom-jira-exporter-$project_version.jar" "target/prom-jira-exporter-$deploy_version.jar"
 
 deploy:
   provider: releases
   api_key: $GITHUB_OAUTH_TOKEN
-  file: "jira-prometheus-exporter/target/prom-jira-exporter-$deploy_version.jar"
+  file: "target/prom-jira-exporter-$deploy_version.jar"
   skip_cleanup: true
   on:
     tags: true
