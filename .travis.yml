@@ -22,7 +22,7 @@ notifications:
   email: false
 
 before_deploy:
-  - mvn help:evaluate -N -Dexpression=project.version | grep -v '\['
+  - atlas-mvn help:evaluate -N -Dexpression=project.version | grep -v '\['
   - export project_version=$(mvn help:evaluate -N -Dexpression=project.version | grep -v '\[') TRAVIS_BRANCH
   - if [ $TRAVIS_BRANCH != "master" ]; then
       export branch_version=-$TRAVIS_BRANCH;
