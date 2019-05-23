@@ -22,7 +22,7 @@ notifications:
   email: false
 
 before_deploy:
-  - echo $TRAVIS_BRANCH
+  - echo "Deploy branch - $TRAVIS_BRANCH"
   - atlas-mvn help:evaluate -N -Dexpression=project.version | grep -v '\['
   - export project_version=$(atlas-mvn help:evaluate -N -Dexpression=project.version | grep -v '\[')
   - echo $project_version
@@ -30,7 +30,8 @@ before_deploy:
       export branch_version=-$TRAVIS_BRANCH;
     fi
   - export deploy_version=$project_version$branch_version
-  - echo $deploy_version
+  - echo "Deploy version - $deploy_version"
+  - ls
   - mv "target/prom-jira-exporter-$project_version.jar" "target/prom-jira-exporter-$deploy_version.jar"
 
 deploy:
