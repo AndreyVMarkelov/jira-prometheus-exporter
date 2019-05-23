@@ -1,6 +1,9 @@
 sudo: false
 language: java
 
+env:
+  - MAVEN_OPTS=-Xmx512m
+
 cache:
   directories:
     - $HOME/.m2
@@ -22,7 +25,7 @@ notifications:
   email: false
 
 before_deploy:
-  - export project_version=$(atlas-mvn help:evaluate -B -N -Dexpression=project.version | grep -v '\[' | tr -d '\n')
+  - export project_version=$(atlas-mvn help:evaluate -B -N -Dexpression=project.version | grep -v '\[' | tail -1 | tr -d '\n')
 
 deploy:
   provider: releases
