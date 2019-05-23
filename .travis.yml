@@ -33,4 +33,4 @@ deploy:
   on:
     tags: true
     repo: AndreyVMarkelov/jira-prometheus-exporter
-  name: $deploy_version
+  name: $project_version
