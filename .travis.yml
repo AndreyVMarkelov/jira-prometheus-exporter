@@ -1,6 +1,10 @@
 sudo: false
 language: java
 
+cache:
+  directories:
+    - $HOME/.m2
+
 jdk:
   - oraclejdk8
 
@@ -21,7 +25,7 @@ before_deploy:
   - mvn help:evaluate -N -Dexpression=project.version | grep -v '\['
   - export project_version=$(mvn help:evaluate -N -Dexpression=project.version | grep -v '\[') TRAVIS_BRANCH
   - if [ $TRAVIS_BRANCH != "master" ]; then
-    export branch_version=-$TRAVIS_BRANCH
+      export branch_version=-$TRAVIS_BRANCH;
     fi
   - export deploy_version=$project_version$branch_version
   - mv "jira-prometheus-exporter/target/prom-jira-exporter-$project_version.jar" "jira-prometheus-exporter/target/prom-jira-exporter-$deploy_version.jar"
@@ -29,8 +33,7 @@ before_deploy:
 deploy:
   provider: releases
   api_key: $GITHUB_OAUTH_TOKEN
-  file:
-    - "jira-prometheus-exporter/target/prom-jira-exporter-$deploy_version.jar"
+  file: "jira-prometheus-exporter/target/prom-jira-exporter-$deploy_version.jar"
   skip_cleanup: true
   on:
     tags: true
