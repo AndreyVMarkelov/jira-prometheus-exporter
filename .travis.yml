@@ -22,17 +22,14 @@ notifications:
   email: false
 
 before_deploy:
-  - echo "Deploy branch - $TRAVIS_BRANCH"
-  - atlas-mvn help:evaluate -N -Dexpression=project.version | grep -v '\['
-  - export project_version=$(atlas-mvn help:evaluate -N -Dexpression=project.version | grep -v '\[')
+  - export project_version=$(atlas-mvn help:evaluate -D -N -Dexpression=project.version | grep -v '\[')
   - echo $project_version
   - if [ $TRAVIS_BRANCH != "master" ]; then
       export branch_version=-$TRAVIS_BRANCH;
     fi
   - export deploy_version=$project_version$branch_version
   - echo "Deploy version - $deploy_version"
-  - ls
-  - mv "target/prom-jira-exporter-$project_version.jar" "target/prom-jira-exporter-$deploy_version.jar"
+  - mv $TRAVIS_BUILD_DIR/target/prom-jira-exporter-$project_version.jar $TRAVIS_BUILD_DIR/target/prom-jira-exporter-$deploy_version.jar
 
 deploy:
   provider: releases
