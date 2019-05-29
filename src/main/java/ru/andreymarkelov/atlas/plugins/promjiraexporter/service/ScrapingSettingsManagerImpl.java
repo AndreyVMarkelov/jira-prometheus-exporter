@@ -6,7 +6,7 @@ import com.atlassian.sal.api.pluginsettings.PluginSettingsFactory;
 import static org.apache.commons.lang3.math.NumberUtils.toInt;
 
 public class ScrapingSettingsManagerImpl implements ScrapingSettingsManager {
-    private static final int DEFAULT_SCRAPE_DELAY = 1;
+    private static final int DEFAULT_SCRAPE_DELAY = 5;
 
     private final PluginSettings pluginSettings;
 
