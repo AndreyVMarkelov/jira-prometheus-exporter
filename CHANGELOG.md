@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.28] (v7.3.x-8.2.x)
+
 - Fixed high CPU
 - Fixed missed license metrics
 - Added new metric for DC: jira_total_cluster_nodes_gauge
