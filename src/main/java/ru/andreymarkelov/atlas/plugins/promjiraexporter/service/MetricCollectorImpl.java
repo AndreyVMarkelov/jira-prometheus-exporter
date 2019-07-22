@@ -1,35 +1,5 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.service;
 
-import com.atlassian.application.api.Application;
-import com.atlassian.application.api.ApplicationManager;
-import com.atlassian.instrumentation.Instrument;
-import com.atlassian.instrumentation.InstrumentRegistry;
-import com.atlassian.jira.cluster.ClusterManager;
-import com.atlassian.jira.issue.IssueManager;
-import com.atlassian.jira.license.LicenseCountService;
-import com.atlassian.jira.user.util.UserManager;
-import com.atlassian.jira.web.session.currentusers.JiraUserSession;
-import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
-import com.atlassian.mail.queue.MailQueue;
-import com.atlassian.sal.api.license.SingleProductLicenseDetailsView;
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Histogram;
-import io.prometheus.client.hotspot.DefaultExports;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
-import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
-
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
-import java.util.List;
-
 import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_ACTIVE;
 import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_IDLE;
@@ -45,6 +15,41 @@ import static java.util.Collections.emptyList;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.ServletException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
+
+import com.atlassian.application.api.Application;
+import com.atlassian.application.api.ApplicationManager;
+import com.atlassian.instrumentation.Instrument;
+import com.atlassian.instrumentation.InstrumentRegistry;
+import com.atlassian.jira.application.ApplicationRoleManager;
+import com.atlassian.jira.application.DefaultApplicationRoleManager;
+import com.atlassian.jira.cluster.ClusterManager;
+import com.atlassian.jira.issue.IssueManager;
+import com.atlassian.jira.license.LicenseCountService;
+import com.atlassian.jira.user.util.UserManager;
+import com.atlassian.jira.web.session.currentusers.JiraUserSession;
+import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
+import com.atlassian.mail.queue.MailQueue;
+import com.atlassian.sal.api.license.SingleProductLicenseDetailsView;
+
+import io.prometheus.client.Collector;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Gauge;
+import io.prometheus.client.Histogram;
+import io.prometheus.client.hotspot.DefaultExports;
+import ru.andreymarkelov.atlas.plugins.promjiraexporter.util.ExceptionRunnable;
 
 public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean, InitializingBean {
     private static final Logger log = LoggerFactory.getLogger(MetricCollectorImpl.class);
@@ -62,6 +67,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final CollectorRegistry registry;
     private final InstrumentRegistry instrumentRegistry;
     private final MailQueue mailQueue;
+    private final ApplicationRoleManager applicationRoleManager;
 
     public MetricCollectorImpl(
             IssueManager issueManager,
@@ -71,7 +77,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             ApplicationManager jiraApplicationManager,
             ScheduledMetricEvaluator scheduledMetricEvaluator,
             InstrumentRegistry instrumentRegistry,
-            MailQueue mailQueue) {
+            MailQueue mailQueue,
+            ApplicationRoleManager applicationRoleManager) {
         this.issueManager = issueManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
@@ -82,6 +89,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         this.registry = CollectorRegistry.defaultRegistry;
         this.instrumentRegistry = instrumentRegistry;
         this.mailQueue = mailQueue;
+        this.applicationRoleManager = applicationRoleManager;
     }
 
     private final Gauge mailQueueGauge = Gauge.build()
@@ -102,6 +110,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final Gauge activeUsersGauge = Gauge.build()
             .name("jira_active_users_gauge")
             .help("Active Users Gauge")
+            .labelNames("licenseType")
             .create();
 
     private final Gauge issuesGauge = Gauge.build()
@@ -390,9 +399,18 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
                                     .labels(application.getName())
                                     .set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
                         }
+                        
+                        int allowedUsers = singleProductLicenseDetailsView.getNumberOfUsers();
+                        
                         allowedUsersGauge
                                 .labels(application.getName())
-                                .set(singleProductLicenseDetailsView.getNumberOfUsers());
+                                .set(allowedUsers);
+                        
+                        int activeUsers = allowedUsers - applicationRoleManager.getRemainingSeats(application.getKey());
+                        
+                        activeUsersGauge
+                        		.labels(application.getName())
+                        		.set(activeUsers);
                     }
                 }
             }
@@ -426,7 +444,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
         // users
         allUsersGauge.set(userManager.getTotalUserCount());
-        activeUsersGauge.set(licenseCountService.totalBillableUsers());
 
         // attachment size
         totalAttachmentSizeGauge.set(scheduledMetricEvaluator.getTotalAttachmentSize());
