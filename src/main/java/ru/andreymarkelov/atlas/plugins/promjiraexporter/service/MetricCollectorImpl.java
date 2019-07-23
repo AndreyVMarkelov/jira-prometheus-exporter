@@ -33,10 +33,8 @@ import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
 import com.atlassian.jira.application.ApplicationRoleManager;
-import com.atlassian.jira.application.DefaultApplicationRoleManager;
 import com.atlassian.jira.cluster.ClusterManager;
 import com.atlassian.jira.issue.IssueManager;
-import com.atlassian.jira.license.LicenseCountService;
 import com.atlassian.jira.user.util.UserManager;
 import com.atlassian.jira.web.session.currentusers.JiraUserSession;
 import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
@@ -61,7 +59,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final JiraUserSessionTracker jiraUserSessionTracker;
     private final ClusterManager clusterManager;
     private final UserManager userManager;
-    private final LicenseCountService licenseCountService;
     private final ApplicationManager jiraApplicationManager;
     private final ScheduledMetricEvaluator scheduledMetricEvaluator;
     private final CollectorRegistry registry;
@@ -73,7 +70,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             IssueManager issueManager,
             ClusterManager clusterManager,
             UserManager userManager,
-            LicenseCountService licenseCountService,
             ApplicationManager jiraApplicationManager,
             ScheduledMetricEvaluator scheduledMetricEvaluator,
             InstrumentRegistry instrumentRegistry,
@@ -83,7 +79,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
         this.userManager = userManager;
-        this.licenseCountService = licenseCountService;
         this.jiraApplicationManager = jiraApplicationManager;
         this.scheduledMetricEvaluator = scheduledMetricEvaluator;
         this.registry = CollectorRegistry.defaultRegistry;
