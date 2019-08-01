@@ -12,11 +12,7 @@ import com.atlassian.jira.web.session.currentusers.JiraUserSession;
 import com.atlassian.jira.web.session.currentusers.JiraUserSessionTracker;
 import com.atlassian.mail.queue.MailQueue;
 import com.atlassian.sal.api.license.SingleProductLicenseDetailsView;
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Histogram;
+import io.prometheus.client.*;
 import io.prometheus.client.hotspot.DefaultExports;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,17 +26,7 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.atlassian.jira.instrumentation.InstrumentationName.CONCURRENT_REQUESTS;
-import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_ACTIVE;
-import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_IDLE;
-import static com.atlassian.jira.instrumentation.InstrumentationName.DBCP_MAX;
-import static com.atlassian.jira.instrumentation.InstrumentationName.DB_CONNECTIONS;
-import static com.atlassian.jira.instrumentation.InstrumentationName.DB_CONNECTIONS_BORROWED;
-import static com.atlassian.jira.instrumentation.InstrumentationName.DB_READS;
-import static com.atlassian.jira.instrumentation.InstrumentationName.DB_WRITES;
-import static com.atlassian.jira.instrumentation.InstrumentationName.HTTP_SESSION_OBJECTS;
-import static com.atlassian.jira.instrumentation.InstrumentationName.REST_REQUESTS;
-import static com.atlassian.jira.instrumentation.InstrumentationName.WEB_REQUESTS;
+import static com.atlassian.jira.instrumentation.InstrumentationName.*;
 import static java.util.Collections.emptyList;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -48,9 +34,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean, InitializingBean {
     private static final Logger log = LoggerFactory.getLogger(MetricCollectorImpl.class);
-
-    // since 7.8.0
-    private static final String QUICKSEARCH_CONCURRENT_REQUESTS = "quicksearch.concurrent.search";
 
     private final IssueManager issueManager;
     private final JiraUserSessionTracker jiraUserSessionTracker;
@@ -84,6 +67,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         this.mailQueue = mailQueue;
     }
 
+    //--> Mails
+
     private final Gauge mailQueueGauge = Gauge.build()
             .name("jira_mail_queue_gauge")
             .help("Mail Queue Gauge")
@@ -93,6 +78,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .name("jira_mail_queue_error_gauge")
             .help("Mail Queue Error Gauge")
             .create();
+
+    //--> Users
 
     private final Gauge allUsersGauge = Gauge.build()
             .name("jira_all_users_gauge")
@@ -160,6 +147,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .labelNames("dashboardId", "username")
             .create();
 
+    //--> Instrumentary
+
     private final Gauge dbcpNumActiveGauge = Gauge.build()
             .name("jira_dbcp_num_active_gauge")
             .help("DBCP Number Of Active Connections Gauge")
@@ -210,14 +199,64 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("Number Of Concurrent Requests Gauge")
             .create();
 
+    private final Gauge httpSessionObjectsGauge = Gauge.build()
+            .name("jira_http_session_objects_gauge")
+            .help("Number Of Http Session Objects Gauge")
+            .create();
+
     private final Gauge concurrentQuicksearchesGauge = Gauge.build()
             .name("jira_concurrent_number_of_quicksearches_gauge")
             .help("Concurrent number of quicksearches")
             .create();
 
-    private final Gauge httpSessionObjectsGauge = Gauge.build()
-            .name("jira_http_session_objects_gauge")
-            .help("Number Of Http Session Objects Gauge")
+    private final Gauge issueIndexReadsGauge = Gauge.build()
+            .name("jira_issue_index_reads_gauge")
+            .help("Index Reads Count")
+            .create();
+
+    private final Gauge issueIndexWritesGauge = Gauge.build()
+            .name("jira_issue_index_writes_gauge")
+            .help("Index Writes Count")
+            .create();
+
+    private final Gauge workflowsGauge = Gauge.build()
+            .name("jira_total_workflows_gauge")
+            .help("Workflows Gauge")
+            .create();
+
+    private final Gauge customFieldsGauge = Gauge.build()
+            .name("jira_total_customfields_gauge")
+            .help("Custom Fields Gauge")
+            .create();
+
+    private final Gauge attachmentsGauge = Gauge.build()
+            .name("jira_total_attachments_gauge")
+            .help("Attachments Gauge")
+            .create();
+
+    private final Gauge versionsGauge = Gauge.build()
+            .name("jira_total_versions_gauge")
+            .help("Versions Gauge")
+            .create();
+
+    private final Gauge filtersGauge = Gauge.build()
+            .name("jira_total_filters_gauge")
+            .help("Filters Gauge")
+            .create();
+
+    private final Gauge componentsGauge = Gauge.build()
+            .name("jira_total_components_gauge")
+            .help("Components Gauge")
+            .create();
+
+    private final Gauge groupsGauge = Gauge.build()
+            .name("jira_total_groups_gauge")
+            .help("Groups Gauge")
+            .create();
+
+    private final Gauge projectsGauge = Gauge.build()
+            .name("jira_total_projects_gauge")
+            .help("Projects Gauge")
             .create();
 
     private final Gauge jvmUptimeGauge = Gauge.build()
@@ -443,7 +482,17 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         Instrument restRequests = instrumentRegistry.getInstrument(REST_REQUESTS.getInstrumentName());
         Instrument concurrentRequests = instrumentRegistry.getInstrument(CONCURRENT_REQUESTS.getInstrumentName());
         Instrument httpSessionObjects = instrumentRegistry.getInstrument(HTTP_SESSION_OBJECTS.getInstrumentName());
-        Instrument concurrentQuicksearches = instrumentRegistry.getInstrument(QUICKSEARCH_CONCURRENT_REQUESTS);
+        Instrument concurrentQuickSearches = instrumentRegistry.getInstrument(QUICKSEARCH_CONCURRENT_REQUESTS.getInstrumentName());
+        Instrument issueIndexReads = instrumentRegistry.getInstrument(ISSUE_INDEX_READS.getInstrumentName());
+        Instrument issueIndexWrites = instrumentRegistry.getInstrument(ISSUE_INDEX_WRITES.getInstrumentName());
+        Instrument totalWorkflows = instrumentRegistry.getInstrument(TOTAL_WORKFLOWS.getInstrumentName());
+        Instrument totalCustomFields = instrumentRegistry.getInstrument(TOTAL_CUSTOMFIELDS.getInstrumentName());
+        Instrument totalAttachments = instrumentRegistry.getInstrument(TOTAL_ATTACHMENTS.getInstrumentName());
+        Instrument totalVersions = instrumentRegistry.getInstrument(TOTAL_VERSIONS.getInstrumentName());
+        Instrument totalFilters = instrumentRegistry.getInstrument(TOTAL_FILTERS.getInstrumentName());
+        Instrument totalComponents = instrumentRegistry.getInstrument(TOTAL_COMPONENTS.getInstrumentName());
+        Instrument totalGroups = instrumentRegistry.getInstrument(TOTAL_GROUPS.getInstrumentName());
+        Instrument totalProjects = instrumentRegistry.getInstrument(TOTAL_PROJECTS.getInstrumentName());
 
         dbcpNumActiveGauge.set(getNullSafeValue(dbcpActive));
         dbcpMaxActiveGauge.set(getNullSafeValue(dbcpMaxActive));
@@ -456,7 +505,17 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         restRequestsGauge.set(getNullSafeValue(restRequests));
         concurrentRequestsGauge.set(getNullSafeValue(concurrentRequests));
         httpSessionObjectsGauge.set(getNullSafeValue(httpSessionObjects));
-        concurrentQuicksearchesGauge.set(getNullSafeValue(concurrentQuicksearches));
+        concurrentQuicksearchesGauge.set(getNullSafeValue(concurrentQuickSearches));
+        issueIndexReadsGauge.set(getNullSafeValue(issueIndexReads));
+        issueIndexWritesGauge.set(getNullSafeValue(issueIndexWrites));
+        workflowsGauge.set(getNullSafeValue(totalWorkflows));
+        customFieldsGauge.set(getNullSafeValue(totalCustomFields));
+        attachmentsGauge.set(getNullSafeValue(totalAttachments));
+        versionsGauge.set(getNullSafeValue(totalVersions));
+        filtersGauge.set(getNullSafeValue(totalFilters));
+        componentsGauge.set(getNullSafeValue(totalComponents));
+        groupsGauge.set(getNullSafeValue(totalGroups));
+        projectsGauge.set(getNullSafeValue(totalProjects));
 
         // jvm uptime
         jvmUptimeGauge.set(ManagementFactory.getRuntimeMXBean().getUptime());
@@ -505,9 +564,20 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(webRequestsGauge.collect());
         result.addAll(restRequestsGauge.collect());
         result.addAll(concurrentRequestsGauge.collect());
-        result.addAll(concurrentQuicksearchesGauge.collect());
         result.addAll(httpSessionObjectsGauge.collect());
+        result.addAll(concurrentQuicksearchesGauge.collect());
+        result.addAll(issueIndexReadsGauge.collect());
+        result.addAll(issueIndexWritesGauge.collect());
+        result.addAll(workflowsGauge.collect());
+        result.addAll(customFieldsGauge.collect());
+        result.addAll(attachmentsGauge.collect());
+        result.addAll(versionsGauge.collect());
+        result.addAll(filtersGauge.collect());
+        result.addAll(componentsGauge.collect());
+        result.addAll(groupsGauge.collect());
+        result.addAll(projectsGauge.collect());
         result.addAll(jvmUptimeGauge.collect());
+        // mails
         result.addAll(mailQueueGauge.collect());
         result.addAll(mailQueueErrorGauge.collect());
 

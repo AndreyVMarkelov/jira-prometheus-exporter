@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 
-import javax.annotation.Nonnull;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -46,17 +45,13 @@ public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, D
         this.lastExecutionTimestamp = new AtomicLong(-1);
 
         this.threadFactory = defaultThreadFactory();
-        this.executorService = newSingleThreadScheduledExecutor(new ThreadFactory() {
-            @Override
-            public Thread newThread(@Nonnull Runnable r) {
-                Thread thread = threadFactory.newThread(r);
-                thread.setPriority(MIN_PRIORITY);
-                return thread;
-            }
+        this.executorService = newSingleThreadScheduledExecutor(r -> {
+            Thread thread = threadFactory.newThread(r);
+            thread.setPriority(MIN_PRIORITY);
+            return thread;
         });
         this.lock = new ReentrantLock();
     }
-
 
     @Override
     public void afterPropertiesSet() {
