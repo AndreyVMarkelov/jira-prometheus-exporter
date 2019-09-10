@@ -4,6 +4,7 @@ import com.atlassian.application.api.Application;
 import com.atlassian.application.api.ApplicationManager;
 import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
+import com.atlassian.jira.application.ApplicationRoleManager;
 import com.atlassian.jira.cluster.ClusterManager;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.license.LicenseCountService;
@@ -45,6 +46,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final CollectorRegistry registry;
     private final InstrumentRegistry instrumentRegistry;
     private final MailQueue mailQueue;
+    private final ApplicationRoleManager applicationRoleManager;
 
     public MetricCollectorImpl(
             IssueManager issueManager,
@@ -54,7 +56,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             ApplicationManager jiraApplicationManager,
             ScheduledMetricEvaluator scheduledMetricEvaluator,
             InstrumentRegistry instrumentRegistry,
-            MailQueue mailQueue) {
+            MailQueue mailQueue,
+            ApplicationRoleManager applicationRoleManager) {
         this.issueManager = issueManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
@@ -65,6 +68,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         this.registry = CollectorRegistry.defaultRegistry;
         this.instrumentRegistry = instrumentRegistry;
         this.mailQueue = mailQueue;
+        this.applicationRoleManager = applicationRoleManager;
     }
 
     //--> Mails
@@ -77,18 +81,6 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final Gauge mailQueueErrorGauge = Gauge.build()
             .name("jira_mail_queue_error_gauge")
             .help("Mail Queue Error Gauge")
-            .create();
-
-    //--> Users
-
-    private final Gauge allUsersGauge = Gauge.build()
-            .name("jira_all_users_gauge")
-            .help("All Users Gauge")
-            .create();
-
-    private final Gauge activeUsersGauge = Gauge.build()
-            .name("jira_active_users_gauge")
-            .help("Active Users Gauge")
             .create();
 
     private final Gauge issuesGauge = Gauge.build()
@@ -391,6 +383,25 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
     //------------------------------------------------------------------------------------------------------------------
 
+    //--> Users
+
+    private final Gauge allUsersGauge = Gauge.build()
+            .name("jira_all_users_gauge")
+            .help("All Users Gauge")
+            .create();
+
+    private final Gauge allActiveUsersGauge = Gauge.build()
+            .name("jira_all_active_users_gauge")
+            .help("All Active Users Gauge")
+            .create();
+
+    private void usersMetrics() {
+        allUsersGauge.set(userManager.getTotalUserCount());
+        allActiveUsersGauge.set(licenseCountService.totalBillableUsers());
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+
     //--> License metrics
 
     private final Gauge maintenanceExpiryDaysGauge = Gauge.build()
@@ -411,33 +422,54 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .labelNames("licenseType")
             .create();
 
+    private final Gauge activeUsersGauge = Gauge.build()
+            .name("jira_active_users_gauge")
+            .help("Active Users Gauge")
+            .labelNames("licenseType")
+            .create();
+
     private void licenseMetrics() {
         try {
+            // platform
+            SingleProductLicenseDetailsView platformProductLicenseDetailsView = jiraApplicationManager.getPlatform().getLicense().getOrNull();
+            if (platformProductLicenseDetailsView != null) {
+                setLicenseData(jiraApplicationManager.getPlatform(), platformProductLicenseDetailsView);
+            }
+
+            // applications
             for (Application application : jiraApplicationManager.getApplications()) {
                 if (application != null) {
                     SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
                     if (singleProductLicenseDetailsView != null) {
-                        // because nullable
-                        if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
-                            maintenanceExpiryDaysGauge
-                                    .labels(application.getName())
-                                    .set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-                        }
-                        // because nullable
-                        if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
-                            licenseExpiryDaysGauge
-                                    .labels(application.getName())
-                                    .set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
-                        }
-                        allowedUsersGauge
-                                .labels(application.getName())
-                                .set(singleProductLicenseDetailsView.getNumberOfUsers());
+                        setLicenseData(application, singleProductLicenseDetailsView);
                     }
                 }
             }
         } catch (Exception ex) {
             log.error("Error to collect license metrics", ex);
         }
+    }
+
+    private void setLicenseData(
+            Application application,
+            SingleProductLicenseDetailsView singleProductLicenseDetailsView) {
+        // because nullable
+        if (singleProductLicenseDetailsView.getMaintenanceExpiryDate() != null) {
+            maintenanceExpiryDaysGauge
+                    .labels(application.getName())
+                    .set(DAYS.convert(singleProductLicenseDetailsView.getMaintenanceExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+        }
+        // because nullable
+        if (singleProductLicenseDetailsView.getLicenseExpiryDate() != null) {
+            licenseExpiryDaysGauge
+                    .labels(application.getName())
+                    .set(DAYS.convert(singleProductLicenseDetailsView.getLicenseExpiryDate().getTime() - System.currentTimeMillis(), MILLISECONDS));
+        }
+
+        int allowedUsers = singleProductLicenseDetailsView.getNumberOfUsers();
+        int activeUsers = applicationRoleManager.getUserCount(application.getKey());
+        allowedUsersGauge.labels(application.getName()).set(allowedUsers);
+        activeUsersGauge.labels(application.getName()).set(activeUsers);
     }
 
     //<-- License metrics
@@ -462,10 +494,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
         clusterMetrics();
         licenseMetrics();
-
-        // users
-        allUsersGauge.set(userManager.getTotalUserCount());
-        activeUsersGauge.set(licenseCountService.totalBillableUsers());
+        usersMetrics();
 
         // attachment size
         totalAttachmentSizeGauge.set(scheduledMetricEvaluator.getTotalAttachmentSize());
@@ -551,9 +580,12 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(maintenanceExpiryDaysGauge.collect());
         result.addAll(licenseExpiryDaysGauge.collect());
         result.addAll(allowedUsersGauge.collect());
-
-        result.addAll(allUsersGauge.collect());
         result.addAll(activeUsersGauge.collect());
+
+        // users
+        result.addAll(allUsersGauge.collect());
+        result.addAll(allActiveUsersGauge.collect());
+
         result.addAll(dbcpNumActiveGauge.collect());
         result.addAll(dbcpNumIdleGauge.collect());
         result.addAll(dbcpMaxActiveGauge.collect());
