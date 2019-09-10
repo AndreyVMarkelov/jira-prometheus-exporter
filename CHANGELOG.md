@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.31-jira8] (v8.x - 8.4.x)
+
+- Fixed license metrics (added application name label)
+- Support Jira 8.4.x
+
 ## [1.0.30-jira8] (v8.x - 8.3.x)
 
 - jira_issue_index_reads_gauge (Index Reads Count)
