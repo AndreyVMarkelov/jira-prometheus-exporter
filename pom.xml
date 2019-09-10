@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ru.andreymarkelov.atlas.plugins</groupId>
     <artifactId>prom-jira-exporter</artifactId>
-    <version>1.0.30-jira7</version>
+    <version>1.0.31-jira7</version>
     <packaging>atlassian-plugin</packaging>
 
     <name>Prometheus Exporter For Jira</name>
@@ -69,20 +69,6 @@
             <artifactId>javax.servlet-api</artifactId>
             <version>3.0.1</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>javax.ws.rs</groupId>
-            <artifactId>jsr311-api</artifactId>
-            <version>1.1.1</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- Remove later -->
-        <dependency>
-            <groupId>com.atlassian.fugue</groupId>
-            <artifactId>fugue</artifactId>
-            <version>2.6.1</version>
-            <scope>compile</scope>
         </dependency>
     </dependencies>
 

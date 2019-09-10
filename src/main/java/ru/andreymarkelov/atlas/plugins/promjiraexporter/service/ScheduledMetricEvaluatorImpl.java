@@ -57,7 +57,6 @@ public class ScheduledMetricEvaluatorImpl implements ScheduledMetricEvaluator, D
         this.lock = new ReentrantLock();
     }
 
-
     @Override
     public void afterPropertiesSet() {
         lock.lock();
