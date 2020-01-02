@@ -605,6 +605,8 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         // mails
         result.addAll(mailQueueGauge.collect());
         result.addAll(mailQueueErrorGauge.collect());
+        // scheduled metrics
+        result.addAll(scheduledMetricEvaluator.collect());
 
         return result;
     }
