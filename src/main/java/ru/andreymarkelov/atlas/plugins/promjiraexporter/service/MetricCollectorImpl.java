@@ -6,7 +6,10 @@ import com.atlassian.instrumentation.Instrument;
 import com.atlassian.instrumentation.InstrumentRegistry;
 import com.atlassian.jira.application.ApplicationRoleManager;
 import com.atlassian.jira.cluster.ClusterManager;
+import com.atlassian.jira.project.ProjectManager;
+import com.atlassian.jira.project.Project;
 import com.atlassian.jira.issue.IssueManager;
+import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.license.LicenseCountService;
 import com.atlassian.jira.user.util.UserManager;
 import com.atlassian.jira.web.session.currentusers.JiraUserSession;
@@ -36,6 +39,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class MetricCollectorImpl extends Collector implements MetricCollector, DisposableBean, InitializingBean {
     private static final Logger log = LoggerFactory.getLogger(MetricCollectorImpl.class);
 
+    private final ProjectManager projectManager;
     private final IssueManager issueManager;
     private final JiraUserSessionTracker jiraUserSessionTracker;
     private final ClusterManager clusterManager;
@@ -49,6 +53,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
     private final ApplicationRoleManager applicationRoleManager;
 
     public MetricCollectorImpl(
+            ProjectManager projectManager,
             IssueManager issueManager,
             ClusterManager clusterManager,
             UserManager userManager,
@@ -58,6 +63,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             InstrumentRegistry instrumentRegistry,
             MailQueue mailQueue,
             ApplicationRoleManager applicationRoleManager) {
+        this.projectManager = projectManager;
         this.issueManager = issueManager;
         this.jiraUserSessionTracker = JiraUserSessionTracker.getInstance();
         this.clusterManager = clusterManager;
@@ -119,6 +125,12 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .name("jira_issue_view_count")
             .help("Issue View Count")
             .labelNames("projectKey", "username")
+            .create();
+
+    private final Gauge issueStatusGauge = Gauge.build()
+            .name("jira_issue_status_Gauge")
+            .help("Total issue count per status")
+            .labelNames("projectKey", "status")
             .create();
 
     private final Counter userLoginCounter = Counter.build()
@@ -473,6 +485,21 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         // resolve count issues
         issuesGauge.set(issueManager.getIssueCount());
 
+        // Iterate through all issues by project and collect the status count.
+        issueStatusGauge.clear();
+        List<Project> projects = projectManager.getProjectObjects();
+        for (Project project : projects) {
+            try {
+                List<Long> issueIDs = (List<Long>)issueManager.getIssueIdsForProject(project.getId());
+                List<Issue> issues = issueManager.getIssueObjects(issueIDs);
+                for (Issue issue: issues) {
+                    issueStatusGauge.labels(project.getKey(), issue.getStatusObject().getStatusCategory().getName()).inc();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
         // resolve sessions count
         List<JiraUserSession> snapshot = jiraUserSessionTracker.getSnapshot();
         totalSessionsGauge.set(snapshot.size());
@@ -550,6 +577,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         List<MetricFamilySamples> result = new ArrayList<>();
         result.addAll(issueUpdateCounter.collect());
         result.addAll(issueViewCounter.collect());
+        result.addAll(issueStatusGauge.collect());
         result.addAll(userLoginCounter.collect());
         result.addAll(userLogoutCounter.collect());
         result.addAll(dashboardViewCounter.collect());
