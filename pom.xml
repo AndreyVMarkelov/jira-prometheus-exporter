@@ -105,7 +105,7 @@
     </build>
 
     <properties>
-        <jira.version>8.6.1</jira.version>
+        <jira.version>8.0.1</jira.version>
         <amps.version>6.3.15</amps.version>
         <sal-api.version>3.0.0</sal-api.version>
         <lang3.version>3.0</lang3.version>
