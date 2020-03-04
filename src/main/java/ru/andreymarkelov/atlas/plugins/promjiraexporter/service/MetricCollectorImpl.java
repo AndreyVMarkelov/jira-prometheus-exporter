@@ -430,6 +430,12 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
     private void licenseMetrics() {
         try {
+            // platform
+            SingleProductLicenseDetailsView platformProductLicenseDetailsView = jiraApplicationManager.getPlatform().getLicense().getOrNull();
+            if (platformProductLicenseDetailsView != null) {
+                setLicenseData(jiraApplicationManager.getPlatform(), platformProductLicenseDetailsView);
+            }
+            // applications
             for (Application application : jiraApplicationManager.getApplications()) {
                 if (application != null) {
                     SingleProductLicenseDetailsView singleProductLicenseDetailsView = application.getLicense().getOrNull();
