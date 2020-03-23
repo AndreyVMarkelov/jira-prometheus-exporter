@@ -734,7 +734,7 @@
       "repeatIteration": null,
       "repeatRowId": null,
       "showTitle": true,
-      "title": "JIRA Issues",
+      "title": "Jira Issues",
       "titleSize": "h6"
     },
     {
@@ -997,7 +997,7 @@
             "#d44a3a"
           ],
           "datasource": "${DS_PROMETHEUS}",
-          "description": "The total issues in JIRA",
+          "description": "The total issues in Jira",
           "format": "none",
           "gauge": {
             "maxValue": 100,
@@ -1423,6 +1423,6 @@
     ]
   },
   "timezone": "",
-  "title": "JIRA",
+  "title": "Jira",
   "version": 30
 }
