@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+- Standardize product case to Jira to align with [Atlassian branding changes](https://community.atlassian.com/t5/Feedback-Forum-articles/A-new-look-for-Atlassian/ba-p/638077)
+
 ## [1.0.33-jira8] (v8.x - 8.7.x)
 - Fix Fogue dependency
 
