@@ -10,8 +10,8 @@
     <description>This plugin for Atlassian JIRA provides endpoint to export metrics to prometheus.</description>
 
     <organization>
-        <name>Andrey Markelov</name>
-        <url>http://ru.linkedin.com/in/andreymarkelov/</url>
+        <name>Cprime</name>
+        <url>http://cprime.com</url>
     </organization>
 
     <scm>
