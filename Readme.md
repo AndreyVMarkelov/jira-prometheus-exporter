@@ -1,6 +1,6 @@
-# Prometheus Exporter For JIRA [![Build Status](https://travis-ci.org/AndreyVMarkelov/jira-prometheus-exporter.svg?branch=master)](https://travis-ci.org/AndreyVMarkelov/jira-prometheus-exporter)
+# Prometheus Exporter For Jira [![Build Status](https://travis-ci.org/AndreyVMarkelov/jira-prometheus-exporter.svg?branch=master)](https://travis-ci.org/AndreyVMarkelov/jira-prometheus-exporter)
 
-This is JIRA plugin which provides endpoint to expose JIRA metrics to Prometheus.
+This is a Jira plugin which provides an endpoint to expose Jira metrics to Prometheus.
 
 For more information the documentation [Prometheus Exporter For Jira](https://github.com/AndreyVMarkelov/jira-prometheus-exporter/wiki/Prometheus-Exporter-For-JIRA).
 
