@@ -1,6 +1,6 @@
 <atlassian-plugin-marketing>
     <compatibility>
-        <product name="jira" min="7.2.0" max="7.8.1"/>
+        <product name="jira" min="7.2.0" max="8.10.0"/>
     </compatibility>
 
     <logo image="ru/andreymarkelov/atlas/plugins/promjiraexporter/images/prom-exporter.png"/>

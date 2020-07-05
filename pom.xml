@@ -2,16 +2,16 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>ru.andreymarkelov.atlas.plugins</groupId>
-    <artifactId>prom-jira-exporter</artifactId>
-    <version>1.0.33-jira8</version>
+    <artifactId>prom-jira-exporter-lite</artifactId>
+    <version>1.0.37-jira8</version>
     <packaging>atlassian-plugin</packaging>
 
     <name>Prometheus Exporter For Jira</name>
     <description>This plugin for Atlassian Jira provides an endpoint to export metrics to Prometheus.</description>
 
     <organization>
-        <name>Andrey Markelov</name>
-        <url>http://ru.linkedin.com/in/andreymarkelov/</url>
+        <name>Cprime</name>
+        <url>http://cprime.com</url>
     </organization>
 
     <scm>
