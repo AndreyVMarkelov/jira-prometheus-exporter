@@ -156,9 +156,9 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("DBCP Max Number Of Connections Gauge")
             .create();
 
-    private final Gauge dbConnectionsGauge = Gauge.build()
-            .name("jira_db_connections_gauge")
-            .help("DB Number Of Connections Gauge")
+    private final Counter dbConnectionsCounter = Counter.build()
+            .name("jira_db_connections_counter")
+            .help("DB Number Of Connections Counter")
             .create();
 
     private final Gauge dbBorrowedConnectionsGauge = Gauge.build()
@@ -525,7 +525,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         dbcpNumActiveGauge.set(getNullSafeValue(dbcpActive));
         dbcpMaxActiveGauge.set(getNullSafeValue(dbcpMaxActive));
         dbcpNumIdleGauge.set(getNullSafeValue(dbcpIdle));
-        dbConnectionsGauge.set(getNullSafeValue(dbConnections));
+        dbConnectionsCounter.inc(getNullSafeValue(dbConnections) - dbConnectionsCounter.get());
         dbBorrowedConnectionsGauge.set(getNullSafeValue(dbBorrowedConnections));
         dbReadsCounter.inc(getNullSafeValue(dbReads) - dbReadsCounter.get());
         dbWritesCounter.inc(getNullSafeValue(dbWrites) - dbWritesCounter.get());
@@ -588,7 +588,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(dbcpNumActiveGauge.collect());
         result.addAll(dbcpNumIdleGauge.collect());
         result.addAll(dbcpMaxActiveGauge.collect());
-        result.addAll(dbConnectionsGauge.collect());
+        result.addAll(dbConnectionsCounter.collect());
         result.addAll(dbBorrowedConnectionsGauge.collect());
         result.addAll(dbReadsCounter.collect());
         result.addAll(dbWritesCounter.collect());
@@ -619,7 +619,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
     private double getNullSafeValue(Instrument instrument) {
         if (instrument == null) {
-            return -1;
+            return 0;
         }
         return instrument.getValue();
     }
