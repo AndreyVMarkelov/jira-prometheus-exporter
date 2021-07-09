@@ -156,9 +156,9 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("DBCP Max Number Of Connections Gauge")
             .create();
 
-    private final Gauge dbConnectionsGauge = Gauge.build()
-            .name("jira_db_connections_gauge")
-            .help("DB Number Of Connections Gauge")
+    private final Counter dbConnectionsCounter = Counter.build()
+            .name("jira_db_connections_counter")
+            .help("DB Number Of Connections Counter")
             .create();
 
     private final Gauge dbBorrowedConnectionsGauge = Gauge.build()
@@ -166,19 +166,19 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("DB Number Of Borrowed Connections Gauge")
             .create();
 
-    private final Gauge dbReadsGauge = Gauge.build()
-            .name("jira_db_reads_gauge")
-            .help("DB Number Of Reads Gauge")
+    private final Counter dbReadsCounter = Counter.build()
+            .name("jira_db_reads_counter")
+            .help("DB Number Of Reads Counter")
             .create();
 
-    private final Gauge dbWritesGauge = Gauge.build()
-            .name("jira_db_writes_gauge")
-            .help("DB Number Of Writes Gauge")
+    private final Counter dbWritesCounter = Counter.build()
+            .name("jira_db_writes_counter")
+            .help("DB Number Of Writes Counter")
             .create();
 
-    private final Gauge webRequestsGauge = Gauge.build()
-            .name("jira_web_requests_gauge")
-            .help("Number Of Web Requests Gauge")
+    private final Counter webRequestsCounter = Counter.build()
+            .name("jira_web_requests_counter")
+            .help("Number Of Web Requests Counter")
             .create();
 
     private final Gauge restRequestsGauge = Gauge.build()
@@ -201,14 +201,14 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
             .help("Concurrent number of quicksearches")
             .create();
 
-    private final Gauge issueIndexReadsGauge = Gauge.build()
-            .name("jira_issue_index_reads_gauge")
-            .help("Index Reads Count")
+    private final Counter issueIndexReadsCounter = Counter.build()
+            .name("jira_issue_index_reads_counter")
+            .help("Index Reads Counter")
             .create();
 
-    private final Gauge issueIndexWritesGauge = Gauge.build()
-            .name("jira_issue_index_writes_gauge")
-            .help("Index Writes Count")
+    private final Counter issueIndexWritesCounter = Counter.build()
+            .name("jira_issue_index_writes_counter")
+            .help("Index Writes Counter")
             .create();
 
     private final Gauge workflowsGauge = Gauge.build()
@@ -525,17 +525,17 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         dbcpNumActiveGauge.set(getNullSafeValue(dbcpActive));
         dbcpMaxActiveGauge.set(getNullSafeValue(dbcpMaxActive));
         dbcpNumIdleGauge.set(getNullSafeValue(dbcpIdle));
-        dbConnectionsGauge.set(getNullSafeValue(dbConnections));
+        dbConnectionsCounter.inc(getNullSafeValue(dbConnections) - dbConnectionsCounter.get());
         dbBorrowedConnectionsGauge.set(getNullSafeValue(dbBorrowedConnections));
-        dbReadsGauge.set(getNullSafeValue(dbReads));
-        dbWritesGauge.set(getNullSafeValue(dbWrites));
-        webRequestsGauge.set(getNullSafeValue(webRequests));
+        dbReadsCounter.inc(getNullSafeValue(dbReads) - dbReadsCounter.get());
+        dbWritesCounter.inc(getNullSafeValue(dbWrites) - dbWritesCounter.get());
+        webRequestsCounter.inc(getNullSafeValue(webRequests) - webRequestsCounter.get());
         restRequestsGauge.set(getNullSafeValue(restRequests));
         concurrentRequestsGauge.set(getNullSafeValue(concurrentRequests));
         httpSessionObjectsGauge.set(getNullSafeValue(httpSessionObjects));
         concurrentQuicksearchesGauge.set(getNullSafeValue(concurrentQuickSearches));
-        issueIndexReadsGauge.set(getNullSafeValue(issueIndexReads));
-        issueIndexWritesGauge.set(getNullSafeValue(issueIndexWrites));
+        issueIndexReadsCounter.inc(getNullSafeValue(issueIndexReads) - issueIndexReadsCounter.get());
+        issueIndexWritesCounter.inc(getNullSafeValue(issueIndexWrites) - issueIndexWritesCounter.get());
         workflowsGauge.set(getNullSafeValue(totalWorkflows));
         customFieldsGauge.set(getNullSafeValue(totalCustomFields));
         attachmentsGauge.set(getNullSafeValue(totalAttachments));
@@ -588,17 +588,17 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
         result.addAll(dbcpNumActiveGauge.collect());
         result.addAll(dbcpNumIdleGauge.collect());
         result.addAll(dbcpMaxActiveGauge.collect());
-        result.addAll(dbConnectionsGauge.collect());
+        result.addAll(dbConnectionsCounter.collect());
         result.addAll(dbBorrowedConnectionsGauge.collect());
-        result.addAll(dbReadsGauge.collect());
-        result.addAll(dbWritesGauge.collect());
-        result.addAll(webRequestsGauge.collect());
+        result.addAll(dbReadsCounter.collect());
+        result.addAll(dbWritesCounter.collect());
+        result.addAll(webRequestsCounter.collect());
         result.addAll(restRequestsGauge.collect());
         result.addAll(concurrentRequestsGauge.collect());
         result.addAll(httpSessionObjectsGauge.collect());
         result.addAll(concurrentQuicksearchesGauge.collect());
-        result.addAll(issueIndexReadsGauge.collect());
-        result.addAll(issueIndexWritesGauge.collect());
+        result.addAll(issueIndexReadsCounter.collect());
+        result.addAll(issueIndexWritesCounter.collect());
         result.addAll(workflowsGauge.collect());
         result.addAll(customFieldsGauge.collect());
         result.addAll(attachmentsGauge.collect());
@@ -619,7 +619,7 @@ public class MetricCollectorImpl extends Collector implements MetricCollector, D
 
     private double getNullSafeValue(Instrument instrument) {
         if (instrument == null) {
-            return -1;
+            return 0;
         }
         return instrument.getValue();
     }
