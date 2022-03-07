@@ -1,8 +1,6 @@
 package ru.andreymarkelov.atlas.plugins.promjiraexporter.servlet;
 
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
-import io.prometheus.client.hotspot.DefaultExports;
 import org.apache.commons.lang3.StringUtils;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManager;
@@ -19,22 +17,18 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class PrometheusExporter extends HttpServlet {
-    private final CollectorRegistry registry;
+    private final MetricCollector metricCollector;
     private final SecureTokenManager secureTokenManager;
 
-    public PrometheusExporter(
-            MetricCollector metricCollector,
-            SecureTokenManager secureTokenManager) {
+    public PrometheusExporter(MetricCollector metricCollector, SecureTokenManager secureTokenManager) {
         this.secureTokenManager = secureTokenManager;
-        this.registry = CollectorRegistry.defaultRegistry;
-        this.registry.register(metricCollector.getCollector());
-        DefaultExports.initialize();
+        this.metricCollector = metricCollector;
     }
 
     @Override
     protected void doGet(
-            final HttpServletRequest httpServletRequest,
-            final HttpServletResponse httpServletResponse) throws ServletException, IOException {
+            HttpServletRequest httpServletRequest,
+            HttpServletResponse httpServletResponse) throws IOException {
         String paramToken = httpServletRequest.getParameter("token");
         String storedToken = secureTokenManager.getToken();
 
@@ -47,7 +41,7 @@ public class PrometheusExporter extends HttpServlet {
         httpServletResponse.setContentType(TextFormat.CONTENT_TYPE_004);
 
         try (Writer writer = httpServletResponse.getWriter()) {
-            TextFormat.write004(writer, registry.filteredMetricFamilySamples(parse(httpServletRequest)));
+            TextFormat.write004(writer, metricCollector.getRegistry().filteredMetricFamilySamples(parse(httpServletRequest)));
             writer.flush();
         }
     }

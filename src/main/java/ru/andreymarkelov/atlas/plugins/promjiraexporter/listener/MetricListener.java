@@ -3,14 +3,19 @@ package ru.andreymarkelov.atlas.plugins.promjiraexporter.listener;
 import com.atlassian.event.api.EventListener;
 import com.atlassian.event.api.EventPublisher;
 import com.atlassian.jira.event.DashboardViewEvent;
+import com.atlassian.jira.event.cluster.HeartbeatEvent;
 import com.atlassian.jira.event.issue.IssueEvent;
 import com.atlassian.jira.event.issue.IssueViewEvent;
+import com.atlassian.jira.event.type.EventTypeManager;
 import com.atlassian.jira.event.user.LoginEvent;
 import com.atlassian.jira.event.user.LogoutEvent;
 import com.atlassian.jira.issue.Issue;
 import com.atlassian.jira.issue.IssueManager;
 import com.atlassian.jira.security.JiraAuthenticationContext;
 import com.atlassian.jira.user.ApplicationUser;
+import com.atlassian.plugin.event.events.PluginDisabledEvent;
+import com.atlassian.plugin.event.events.PluginEnabledEvent;
+import com.atlassian.plugin.event.events.PluginUninstalledEvent;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector;
@@ -18,28 +23,30 @@ import ru.andreymarkelov.atlas.plugins.promjiraexporter.service.MetricCollector;
 public class MetricListener implements InitializingBean, DisposableBean {
     private final EventPublisher eventPublisher;
     private final IssueManager issueManager;
+    private final EventTypeManager eventTypeManager;
     private final JiraAuthenticationContext jiraAuthenticationContext;
     private final MetricCollector metricCollector;
-
 
     public MetricListener(
             EventPublisher eventPublisher,
             IssueManager issueManager,
+            EventTypeManager eventTypeManager,
             JiraAuthenticationContext jiraAuthenticationContext,
             MetricCollector metricCollector) {
         this.eventPublisher = eventPublisher;
         this.issueManager = issueManager;
+        this.eventTypeManager = eventTypeManager;
         this.jiraAuthenticationContext = jiraAuthenticationContext;
         this.metricCollector = metricCollector;
     }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
         eventPublisher.register(this);
     }
 
     @Override
-    public void destroy() throws Exception {
+    public void destroy() {
         eventPublisher.unregister(this);
     }
 
@@ -47,7 +54,13 @@ public class MetricListener implements InitializingBean, DisposableBean {
     public void onIssueEvent(IssueEvent issueEvent) {
         Issue issue = issueEvent.getIssue();
         if (issue != null) {
-            metricCollector.issueUpdateCounter(issue.getProjectObject().getKey(), issue.getKey(), getCurrentUser());
+            String eventType = "";
+            try {
+                eventType = eventTypeManager.getEventType(issueEvent.getEventTypeId()).getName();
+            } catch (IllegalArgumentException e) {
+            }
+            eventTypeManager.getEventType(issueEvent.getEventTypeId());
+            metricCollector.issueUpdateCounter(issue.getProjectObject().getKey(), eventType, getCurrentUser());
         }
     }
 
@@ -60,7 +73,7 @@ public class MetricListener implements InitializingBean, DisposableBean {
     public void onIssueViewEvent(IssueViewEvent issueViewEvent) {
         Issue issue = issueManager.getIssueObject(issueViewEvent.getId());
         if (issue != null) {
-            metricCollector.issueViewCounter(issue.getProjectObject().getKey(), issue.getKey(), getCurrentUser());
+            metricCollector.issueViewCounter(issue.getProjectObject().getKey(), getCurrentUser());
         }
     }
 
@@ -75,6 +88,39 @@ public class MetricListener implements InitializingBean, DisposableBean {
         ApplicationUser applicationUser = logoutEvent.getUser();
         metricCollector.userLogoutCounter((applicationUser != null) ? applicationUser.getUsername() : "");
     }
+
+    @EventListener
+    public void onPluginEnabledEvent(PluginEnabledEvent pluginEnabledEvent) {
+        metricCollector.pluginEnabledCounter(pluginEnabledEvent.getPlugin().getKey());
+    }
+
+    @EventListener
+    public void onPluginDisabledEvent(PluginDisabledEvent pluginDisabledEvent) {
+        metricCollector.pluginDisabledCounter(pluginDisabledEvent.getPlugin().getKey());
+    }
+
+    @EventListener
+    public void onPluginUninstalledEvent(PluginUninstalledEvent pluginUninstalledEvent) {
+        metricCollector.pluginUninstalledCounter(pluginUninstalledEvent.getPlugin().getKey());
+    }
+
+    //--> Cluster events
+
+    // since 7.3.1
+    public void onHeartbeatEvent(HeartbeatEvent heartbeatEvent) {
+        metricCollector.clusterHeartbeatCounter();
+    }
+
+    // TODO since 7.7.1
+//    public void onCacheReplicationResumedEvent(CacheReplicationResumedEvent cacheReplicationResumedEvent) {
+//        metricCollector.clusterCacheReplicationResumedCounter(cacheReplicationResumedEvent.getNodeId());
+//    }
+//
+//    public void onCacheReplicationStoppedEvent(CacheReplicationStoppedEvent cacheReplicationStoppedEvent) {
+//        metricCollector.clusterCacheReplicationStoppedCounter(cacheReplicationStoppedEvent.getNodeId());
+//    }
+
+    //<-- Cluster metrics
 
     private String getCurrentUser() {
         return jiraAuthenticationContext.isLoggedInUser() ? jiraAuthenticationContext.getLoggedInUser().getName() : "";

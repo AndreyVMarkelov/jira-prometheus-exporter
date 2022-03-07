@@ -7,6 +7,7 @@
         $webResourceManager.requireResource("jira.webresources:global-static")
         $webResourceManager.requireResource("jira.webresources:jira-global")
         $webResourceManager.requireResource("com.atlassian.auiplugin:ajs")
+        $webResourceManager.requireResourcesForContext("prom-for-jira-exporter")
     </head>
     <body class="aui">
         <section id="content" role="main">
@@ -15,6 +16,15 @@
                     <div class="aui-page-header-main">
                         <h1>$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.title")</h1>
                         <p>$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.title.desc")</p>
+                        <p>
+                            <span class="aui-icon aui-icon-small aui-iconfont-info"></span>
+                            $action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.linkdesc")
+                            <a target="_blank" href="${baseurl}/plugins/servlet/prometheus/metrics#if($!{token} != "")?token=${token}#end">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.link")</a>.
+                        </p>
+                        <p>
+                            <span class="aui-icon aui-icon-small aui-iconfont-info"></span>
+                            $action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.lastexecution") ${lastExecutionTimestamp}
+                        </p>
                     </div>
                 </div>
             </header>
@@ -29,23 +39,53 @@
                             </p>
                         </div>
                         #end
-                        <form class="aui" name="jiraform" method="post" action="PromForJiraSecureTokenConfigAction.jspa">
-                            <input type="hidden" name="atl_token" value="$atl_token"/>
-                            <div class="field-group">
-                                <label for="token">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token"):</label>
-                                <input class="text long-field" type="text" id="token" name="token" value="$token"/>
-                                #if($action.getErrors().containsKey("token"))<div class="error">$action.getErrors().get("token")</div>#end
-                                <div class="description">$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token.desc")</div>
-                            </div>
-                            <div class="buttons-container">
-                                <div class="buttons">
-                                    <input class="button submit" type="submit" value='$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.action.save")'/>
+                        <div id="base-form">
+                            <form class="aui" name="jiraform" method="post" action="PromForJiraSecureTokenConfigAction.jspa">
+                                <input type="hidden" name="atl_token" value="$atl_token"/>
+                                <div class="field-group">
+                                    <label for="token">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token"):</label>
+                                    <input class="text long-field" v-model="storedToken" type="text" id="token" name="token"/>
+                                    <button class="aui-button" @click.prevent="generateToken">Generate</button>
+                                    #if($action.getErrors().containsKey("token"))<div class="error">$action.getErrors().get("token")</div>#end
+                                    <div class="description">$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.token.desc")</div>
                                 </div>
-                            </div>
-                        </form>
+                                <div class="field-group">
+                                    <label for="delay">$action.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.delay"):<span class="aui-icon icon-required">required</span></label>
+                                    <input id="delay" name="delay" v-model="storedDelay" type="number" min="0" class="text">
+                                    #if($action.getErrors().containsKey("delay"))<div class="error">$action.getErrors().get("delay")</div>#end
+                                    <div class="description">$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.delay.desc")</div>
+                                </div>
+                                <div class="buttons-container">
+                                    <div class="buttons">
+                                        <input class="button submit" type="submit" value='$i18n.getText("ru.andreymarkelov.atlas.plugins.promjiraexporter.settings.action.save")'/>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
                     </section>
                 </div>
             </div>
         </section>
+        <script>
+            new Vue({
+                el: "#base-form",
+                data() {
+                    return {
+                        storedToken: "$!{token}",
+                        storedDelay: "$!{delay}",
+                        possible: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                    }
+                },
+                methods: {
+                    generateToken: function () {
+                        var res = "";
+                        for (var i = 0; i < 35; i++) {
+                            res += this.possible.charAt(Math.floor(Math.random() * this.possible.length));
+                        }
+                        this.storedToken = res;
+                    }
+                }
+            });
+        </script>
     </body>
 </html>

@@ -8,7 +8,9 @@
         <param name="plugin-icon">/ru/andreymarkelov/atlas/plugins/promjiraexporter/images/prom-exporter-sm.png</param>
         <param name="vendor-icon">/ru/andreymarkelov/atlas/plugins/promjiraexporter/images/32.jpg</param>
         <param name="vendor-logo">/ru/andreymarkelov/atlas/plugins/promjiraexporter/images/144.jpg</param>
-        <param name="atlassian-data-center-compatible">true</param>
+        <param name="plugin-banner">/ru/andreymarkelov/atlas/plugins/promjiraexporter/images/banner.png</param>
+<!--        <param name="atlassian-data-center-status">compatible</param>-->
+<!--        <param name="atlassian-data-center-compatible">true</param>-->
         <param name="configure.url">/secure/PromForJiraSecureTokenConfigAction!default.jspa</param>
     </plugin-info>
 
@@ -18,6 +20,7 @@
     <!-- Web Resources -->
     <web-resource key="prom-for-jira-exporter-resources" name="Web Resources">
         <dependency>com.atlassian.auiplugin:ajs</dependency>
+        <resource type="download" name="vue.min.js" location="/ru/andreymarkelov/atlas/plugins/promjiraexporter/js/vue.min.js"/>
         <resource type="download" name="images/" location="/ru/andreymarkelov/atlas/plugins/promjiraexporter/images"/>
         <context>prom-for-jira-exporter</context>
     </web-resource>
@@ -36,11 +39,20 @@
     <component name="Security Token Data Manager" key="prom-for-jira-exporter-data-manager" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManagerImpl">
         <interface>ru.andreymarkelov.atlas.plugins.promjiraexporter.service.SecureTokenManager</interface>
     </component>
+    <component name="Scraping Data Manager" key="prom-for-jira-exporter-scraping-data-manager" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.service.ScrapingSettingsManagerImpl">
+        <interface>ru.andreymarkelov.atlas.plugins.promjiraexporter.service.ScrapingSettingsManager</interface>
+    </component>
     <component name="Metrics Event Listener" key="prom-jira-exporter-listener" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.listener.MetricListener">
         <description>This service listens JIRA events.</description>
     </component>
+    <component name="Scheduled Metrics Evaluator" key="prom-jira-exporter-evaluator" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.service.ScheduledMetricEvaluatorImpl">
+        <description>This service evaluates metrics in separate threads.</description>
+        <interface>ru.andreymarkelov.atlas.plugins.promjiraexporter.service.ScheduledMetricEvaluator</interface>
+    </component>
     <component-import key="pluginSettingsFactory" interface="com.atlassian.sal.api.pluginsettings.PluginSettingsFactory"/>
     <component-import key="applicationProperties" interface="com.atlassian.sal.api.ApplicationProperties"/>
+    <component-import key="applicationLinkService" interface="com.atlassian.applinks.api.ApplicationLinkService"/>
+    <component-import key="manifestRetriever" interface="com.atlassian.applinks.spi.manifest.ManifestRetriever"/>
 
     <!-- Web Items -->
     <web-section name="Security Token Admin Section" key="prom-for-jira-exporter-admin-section" location="admin_plugins_menu">
@@ -63,4 +75,17 @@
             </action>
         </actions>
     </webwork1>
+
+    <!-- Servlet filter -->
+    <servlet-filter name="Metrics Filter" key="prom-for-jira-exporter-filter" class="ru.andreymarkelov.atlas.plugins.promjiraexporter.servlet.AllEndpointFilter" location="before-login" weight="100">
+        <description>Prometheus statistics filter.</description>
+        <url-pattern>/*</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+        <init-param>
+            <param-name>system-actions-enabled</param-name>
+            <param-value>true</param-value>
+        </init-param>
+    </servlet-filter>
 </atlassian-plugin>

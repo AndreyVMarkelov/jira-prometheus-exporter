@@ -1,0 +1,39 @@
+sudo: false
+language: java
+
+env:
+  - MAVEN_OPTS=-Xmx512m
+
+cache:
+  directories:
+    - $HOME/.m2
+
+jdk:
+  - oraclejdk8
+
+before_install:
+  - ./setup-atlassian-sdk.sh `pwd`
+  - export PATH=opt/atlassian-plugin-sdk/bin:opt/atlassian-plugin-sdk/apache-maven-*/bin:$PATH
+
+install:
+  - atlas-mvn install
+
+script:
+  - atlas-package
+
+notifications:
+  email: false
+
+before_deploy:
+  - export project_version=$(atlas-mvn help:evaluate -B -N -Dexpression=project.version | grep -v '\[' | tail -1 | tr -d '\n')
+
+deploy:
+  provider: releases
+  api_key:
+    secure: "KNnlcrHCFlA5B7h5/P3Ghs3H0IniPQZgYH7Ppp1a+vs0l84Qoq3PknIte8gWHGLiR+MwUCEniYmQ17N7om9gMiiQbBby7ghH1uL8AmYpy78KCBJP9aGIUbOSIWDT6KCb2Ya5xzosa7yM/i57w499S2bI0aPuNrYyLM43gIVWAzpViv2DX4U0jgvmu7xtdDzKYI9aRBCugGW1VtHoeP938cmQAJ5AIafrfQXRgtUnqSKmcfqR2nX75efnznYvZAmYkNKv4Wj6DdFJoYwBHWBLDoNBzVL3T1HEpG37KjSeJ6+FKs77vDadB0vsT4FFzH7elh8dR61ARqQLgUb/mz4bgi9zi7O8H7pq7rihABC+pr23MCqXJjqGenXeLr4Sj5t5uOpsxKRtYcSpj/nvku9NRu+WOn85sMpGswbuYr+5DU9YOOnLwlFTznY2v37D9xy00HPo6Qy5IQLRjKdQCOULyGHX3xFv9JJsSJEtsiFkjXaweiGg0tUMx8RFVE5ALc5IDNsqtOHAMis4GLkQD9kDYXSO7hLTNcFTgqL9aIEVJnuL7f9CA2IFSZWmVrsUVHiUJgy88Nxg78STyNwdgDk9Dj35YpDX04cfVHvNY9HjYGmBVR4Jis35r2qdydD6BzJYM2IZdOQ3RhMkIwkMxiNPVDn13zo09sq2gVDGe5Vek18="
+  file: "target/prom-jira-exporter-$project_version.jar"
+  skip_cleanup: true
+  on:
+    tags: true
+    repo: AndreyVMarkelov/jira-prometheus-exporter
+  name: $project_version
