@@ -108,7 +108,7 @@
         <jira.version>8.0.1</jira.version>
         <amps.version>6.3.15</amps.version>
         <sal-api.version>3.0.0</sal-api.version>
-        <lang3.version>3.0</lang3.version>
+        <lang3.version>3.18.0</lang3.version>
         <prometheus.version>0.6.0</prometheus.version>
         <useFastdevCli>false</useFastdevCli>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
